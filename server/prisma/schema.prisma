@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ---------- ENUMS ----------
+enum Role {
+  CLIENT
+  PRO
+  ADMIN
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  DONE
+  CANCELLED
+}
+
+// ---------- MODELS ----------
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(CLIENT)
+  city      String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  services         Service[] @relation("ProServices")
+  requestsAsClient Request[] @relation("ClientRequests")
+  requestsAsPro    Request[] @relation("ProRequests")
+  reviewsGiven     Review[]  @relation("ReviewsGiven")
+  reviews          Review[]
+}
+
+model Service {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  category    String
+  price       Float
+  zone        String
+  imageUrl    String?
+  imageId     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // FK profesional (owner del servicio)
+  proId Int
+  pro   User @relation("ProServices", fields: [proId], references: [id], onDelete: Cascade)
+
+  // Relaciones
+  requests Request[]
+  reviews  Review[]
+}
+
+model Request {
+  id         Int           @id @default(autoincrement())
+  message    String
+  dateNeeded DateTime?
+  budget     Float?
+  status     RequestStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  // FKs
+  serviceId Int
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  clientId Int
+  client   User @relation("ClientRequests", fields: [clientId], references: [id], onDelete: Cascade)
+
+  proId Int
+  pro   User @relation("ProRequests", fields: [proId], references: [id], onDelete: Cascade)
+
+  // 1 solicitud -> 0/1 reseña
+  review Review?
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  // 1:1 con Request
+  requestId Int     @unique
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  // Para consultas rápidas
+  serviceId Int
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  clientId Int
+  client   User @relation("ReviewsGiven", fields: [clientId], references: [id], onDelete: Cascade)
+
+  proId Int
+  pro   User @relation(fields: [proId], references: [id], onDelete: Cascade)
+}
