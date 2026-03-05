@@ -9,6 +9,7 @@ const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 
 const healthRoutes = require("./routes/health.routes");
+const authRoutes = require("./routes/auth.routes");
 
 const app = express();
 
@@ -29,6 +30,9 @@ app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
 
 // Creo un endpoint de salud en /health para comprobar que la API está operativa.
 app.use("/health", healthRoutes);
+
+// Creo el endpoint /auth y agrupo aquí las rutas de autenticación: registro, login y obtener el usuario autenticado.
+app.use("/auth", authRoutes);
 
 // Gestiono los errores 404 de forma genérica (ruta no encontrada)
 app.use((req, res) => {
