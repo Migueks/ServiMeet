@@ -1,7 +1,6 @@
 // App.js
 // Documento con la configuración de la app de Express (middlewares y rutas).
 // Lo separo de server.js para poder testear y reutilizar sin arrancar el servidor.
-
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -10,6 +9,7 @@ const rateLimit = require("express-rate-limit");
 
 const healthRoutes = require("./routes/health.routes");
 const authRoutes = require("./routes/auth.routes");
+const servicesRoutes = require("./routes/services.routes");
 
 const app = express();
 
@@ -33,6 +33,9 @@ app.use("/health", healthRoutes);
 
 // Creo el endpoint /auth y agrupo aquí las rutas de autenticación: registro, login y obtener el usuario autenticado.
 app.use("/auth", authRoutes);
+
+// Creo el endpoint /services para gestionar el catálogo de servicios publicados por los profesionales.
+app.use("/services", servicesRoutes);
 
 // Gestiono los errores 404 de forma genérica (ruta no encontrada)
 app.use((req, res) => {
