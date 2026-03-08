@@ -1,7 +1,8 @@
-const { z, includes } = require("zod");
+const { z } = require("zod");
 const prisma = require("../config/prisma");
 
 // Esquema para crear servicio
+// Valida los datos necesarios para dar de alta un nuevo servicio y comprueba que tengan el formato y contenido esperados.
 const createServiceSchema = z.object({
   title: z.string().trim().min(3, "El título debe tener al menos 3 caracteres"),
   description: z
@@ -19,6 +20,7 @@ const createServiceSchema = z.object({
 });
 
 // Esquema para actualizar servucio
+// Valida los campos que se quieran modificar en un servicio existente, permitiendo actualizaciones parciales solo con los datos enviados.
 const updateServiceSchema = z.object({
   title: z.string().trim().min(3).optional(),
   description: z.string().trim().min(10).optional(),

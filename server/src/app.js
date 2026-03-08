@@ -10,6 +10,7 @@ const rateLimit = require("express-rate-limit");
 const healthRoutes = require("./routes/health.routes");
 const authRoutes = require("./routes/auth.routes");
 const servicesRoutes = require("./routes/services.routes");
+const requestsRoutes = require("./routes/requests.routes");
 
 const app = express();
 
@@ -36,6 +37,9 @@ app.use("/auth", authRoutes);
 
 // Creo el endpoint /services para gestionar el catálogo de servicios publicados por los profesionales.
 app.use("/services", servicesRoutes);
+
+// Creo el endpoint /requests para gestionar las solicitudes entre clientes y profesionales.
+app.use("/requests", requestsRoutes);
 
 // Gestiono los errores 404 de forma genérica (ruta no encontrada)
 app.use((req, res) => {
