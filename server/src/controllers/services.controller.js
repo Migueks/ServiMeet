@@ -19,7 +19,7 @@ const createServiceSchema = z.object({
   ),
 });
 
-// Esquema para actualizar servucio
+// Esquema para actualizar servicio
 // Valida los campos que se quieran modificar en un servicio existente, permitiendo actualizaciones parciales solo con los datos enviados.
 const updateServiceSchema = z.object({
   title: z.string().trim().min(3).optional(),
@@ -33,7 +33,7 @@ const updateServiceSchema = z.object({
       z.literal(""), // También permito una cadena vacía por si el campo llega vacío desde el formulario.
     ])
     .optional(),
-  isActive: z.boolean().optional(),
+  isActive: z.coerce.boolean().optional(),
 });
 
 // Controlador para obtener todos los servicios activos.

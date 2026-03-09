@@ -6,7 +6,6 @@ datasource db {
   provider = "mysql"
 }
 
-// ---------- ENUMS ----------
 enum Role {
   CLIENT
   PRO
@@ -21,7 +20,6 @@ enum RequestStatus {
   CANCELLED
 }
 
-// ---------- MODELS ----------
 model User {
   id        Int      @id @default(autoincrement())
   name      String
@@ -33,12 +31,11 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relaciones
   services         Service[] @relation("ProServices")
   requestsAsClient Request[] @relation("ClientRequests")
   requestsAsPro    Request[] @relation("ProRequests")
   reviewsGiven     Review[]  @relation("ReviewsGiven")
-  reviews          Review[]
+  reviewsReceived  Review[]  @relation("ReviewsReceived")
 }
 
 model Service {
@@ -54,13 +51,15 @@ model Service {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // FK profesional (owner del servicio)
   proId Int
   pro   User @relation("ProServices", fields: [proId], references: [id], onDelete: Cascade)
 
-  // Relaciones
   requests Request[]
   reviews  Review[]
+
+  @@index([proId])
+  @@index([category])
+  @@index([isActive])
 }
 
 model Request {
@@ -72,7 +71,6 @@ model Request {
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
-  // FKs
   serviceId Int
   service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
@@ -82,21 +80,24 @@ model Request {
   proId Int
   pro   User @relation("ProRequests", fields: [proId], references: [id], onDelete: Cascade)
 
-  // 1 solicitud -> 0/1 reseña
   review Review?
+
+  @@index([serviceId])
+  @@index([clientId])
+  @@index([proId])
+  @@index([status])
 }
 
 model Review {
   id        Int      @id @default(autoincrement())
   rating    Int
-  comment   String?
+  comment   String
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // 1:1 con Request
   requestId Int     @unique
   request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
-  // Para consultas rápidas
   serviceId Int
   service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
@@ -104,5 +105,9 @@ model Review {
   client   User @relation("ReviewsGiven", fields: [clientId], references: [id], onDelete: Cascade)
 
   proId Int
-  pro   User @relation(fields: [proId], references: [id], onDelete: Cascade)
+  pro   User @relation("ReviewsReceived", fields: [proId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
+  @@index([clientId])
+  @@index([proId])
 }

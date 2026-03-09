@@ -11,6 +11,7 @@ const healthRoutes = require("./routes/health.routes");
 const authRoutes = require("./routes/auth.routes");
 const servicesRoutes = require("./routes/services.routes");
 const requestsRoutes = require("./routes/requests.routes");
+const reviewsRoutes = require("./routes/reviews.routes");
 
 const app = express();
 
@@ -40,6 +41,9 @@ app.use("/services", servicesRoutes);
 
 // Creo el endpoint /requests para gestionar las solicitudes entre clientes y profesionales.
 app.use("/requests", requestsRoutes);
+
+// Creo el endpoint /reviews para gestionar las reseñas de servicios completados.
+app.use("/reviews", reviewsRoutes);
 
 // Gestiono los errores 404 de forma genérica (ruta no encontrada)
 app.use((req, res) => {
