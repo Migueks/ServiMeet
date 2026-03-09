@@ -33,8 +33,35 @@ const updateServiceSchema = z.object({
       z.literal(""), // También permito una cadena vacía por si el campo llega vacío desde el formulario.
     ])
     .optional(),
-  isActive: z.coerce.boolean().optional(),
+  isActive: z.boolean().optional(),
 });
+
+// Función auxiliar para calcular la media de puntuación y el total de reseñas.
+// La creo para no repetir lógica en varios controladores
+function calculateRatingData(reviews) {
+  // Guardo el número total de reseñas recibidas.
+  const reviewsCount = reviews.length;
+
+  // Si no hay reseñas, devuelvo 0 como media y 0 como cantidad total.
+  if (reviewsCount === 0) {
+    return {
+      averageRating: 0,
+      reviewsCount: 0,
+    };
+  }
+
+  // Sumo todas las puntuaciones de las reseñas.
+  const totalRating = reviews.reduce((acc, review) => acc + review.rating, 0);
+
+  // Calculo la media y la dejo con un decimal.
+  const averageRating = Number((totalRating / reviewsCount).toFixed(1));
+
+  // Devuelvo la media de puntuación y el total de reseñas.
+  return {
+    averageRating,
+    reviewsCount,
+  };
+}
 
 // Controlador para obtener todos los servicios activos.
 // Busca los servicios en base de datos, los ordena del más reciente al más antiguo.
@@ -60,11 +87,36 @@ async function getAllServices(req, res) {
             avatarUrl: true,
           },
         },
+        reviews: {
+          select: {
+            rating: true,
+          },
+        },
       },
     });
 
+    // Recorro cada servicio para calcular su media de valoración y el total de reseñas.
+    // Después elimino el array reviews del listado para que la respuesta quede más limpia.
+    const formattedServices = services.map((service) => {
+      // Calculo la puntuación media y la cantidad de reseñas del servicio.
+      const { averageRating, reviewsCount } = calculateRatingData(
+        service.reviews,
+      );
+
+      // Separo las reseñas del resto de datos para no devolverlas en la respuesta final.
+      const { reviews, ...serviceWithoutReviews } = service;
+
+      // Devuelvo un nuevo objeto con los datos del servicio
+      // junto con la media de puntuación y el total de reseñas.
+      return {
+        ...serviceWithoutReviews,
+        averageRating,
+        reviewsCount,
+      };
+    });
+
     // Si todo va bien, respondo con código 200 y los servicios obtenidos.
-    return res.status(200).json({ services });
+    return res.status(200).json({ services: formattedServices });
   } catch (error) {
     // Si ocurre un error durante la consulta, devuelvo un 500 junto un mensaje y el detalle del error
     return res.status(500).json({
@@ -76,7 +128,7 @@ async function getAllServices(req, res) {
 
 // Controlador para obtener un servicio por su id.
 // Busca el servicio en base de datos usando el id recibido en los parámetros.
-// INcluye información básica del profesional y sus reseñas asociadas.
+// Incluye información básica del profesional y sus reseñas asociadas.
 async function getServiceById(req, res) {
   try {
     // Convierto el id recibido por params a número para poder consultarlo en la base de datos.
@@ -123,8 +175,19 @@ async function getServiceById(req, res) {
       return res.status(404).json({ message: "Servicio no encontrado" });
     }
 
+    // Calculo la media y el número total de reseñas del servicio.
+    const { averageRating, reviewsCount } = calculateRatingData(
+      service.reviews,
+    );
+
     // Si todo va bien, respondo con código 200 y el servicio encontrado.
-    return res.status(200).json({ service });
+    return res.status(200).json({
+      service: {
+        ...service,
+        averageRating,
+        reviewsCount,
+      },
+    });
   } catch (error) {
     // Si ocurre un error durante la consulta, devuelvo un 500 junto con un mensaje y el detalle del error.
     return res.status(500).json({
@@ -164,10 +227,15 @@ async function createService(req, res) {
       },
     });
 
-    // Si todo va bien, respondo con código 201 y el servicio creado.
+    // Al crearse un servicio nuevo todavía no tiene reseñas,
+    // así que devuelvo la media a 0 y el contador a 0.
     return res.status(201).json({
       message: "Servicio creado correctamente",
-      service,
+      service: {
+        ...service,
+        averageRating: 0,
+        reviewsCount: 0,
+      },
     });
   } catch (error) {
     // Si la validación de Zod falla, devuelvo un 400 con el detalle de los campos que no cumplen el esquema.
@@ -230,13 +298,20 @@ async function updateService(req, res) {
     // Valido los datos recibidos en el body usando el esquema de actualización.
     const data = updateServiceSchema.parse(req.body);
 
+    // Compruebo que, después de validar, siga habiendo al menos un campo válido para actualizar.
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({
+        message: "Debes enviar al menos un campo válido para actualizar",
+      });
+    }
+
     const normalizedData = {
       ...data,
       // Si imageUrl llega como cadena vacía, la convierto a null para guardar que el servicio no tiene imagen.
       ...(data.imageUrl === "" ? { imageUrl: null } : {}),
     };
 
-    // Actualizo el servicio en la base de datos con los datos validados e incluyo información básica del profesional asociado.
+    // Actualizo el servicio en la base de datos con los datos validados e incluyo información básica del profesional asociado y las reseñas para poder calcular la media.
     const updatedService = await prisma.service.update({
       where: { id },
       data: normalizedData,
@@ -248,13 +323,30 @@ async function updateService(req, res) {
             city: true,
           },
         },
+        reviews: {
+          select: {
+            rating: true,
+          },
+        },
       },
     });
+
+    // Calculo la media y el total de reseñas del servicio actualizado.
+    const { averageRating, reviewsCount } = calculateRatingData(
+      updatedService.reviews,
+    );
+
+    // Quito el array reviews de la respuesta para devolver un objeto más limpio.
+    const { reviews, ...serviceWithoutReviews } = updatedService;
 
     // Si todo va bien, respondo con código 200 y el servicio actualizado.
     return res.status(200).json({
       message: "Servicio actualizado correctamente",
-      service: updatedService,
+      service: {
+        ...serviceWithoutReviews,
+        averageRating,
+        reviewsCount,
+      },
     });
   } catch (error) {
     // Si la validación de Zod falla, devuelvo un 400 con el detalle de los campos que no cumplen el esquema.
@@ -267,9 +359,6 @@ async function updateService(req, res) {
         })),
       });
     }
-
-    console.error(error);
-    console.error(error.stack);
 
     // Si ocurre cualquier otro error, devuelvo un 500 junto con un mensaje y el detalle del error.
     return res.status(500).json({
