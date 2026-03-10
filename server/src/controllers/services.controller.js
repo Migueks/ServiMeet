@@ -27,7 +27,7 @@ const updateServiceSchema = z.object({
   category: z.string().trim().min(2).optional(),
   price: z.coerce.number().positive().optional(), // Igual que arriba: convierto a número por si el valor llega como string en req.body.
   zone: z.string().trim().min(2).optional(),
-  isActive: z.coerce.boolean().optional(),
+  isActive: z.boolean().optional(),
 });
 
 // Función auxiliar para calcular la media de puntuación y el total de reseñas.
