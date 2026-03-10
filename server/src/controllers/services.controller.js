@@ -1,6 +1,11 @@
 const { z } = require("zod");
 const prisma = require("../config/prisma");
 
+// Importo la utilidad que se encarga de subir imágenes a Cloudinary.
+const uploadToCloudinary = require("../utils/uploadToCloudinary");
+// Importo la utilidad que se encarga de borrar imágenes de Cloudinary.
+const deleteFromCloudinary = require("../utils/deleteFromCloudinary");
+
 // Esquema para crear servicio
 // Valida los datos necesarios para dar de alta un nuevo servicio y comprueba que tengan el formato y contenido esperados.
 const createServiceSchema = z.object({
@@ -12,11 +17,6 @@ const createServiceSchema = z.object({
   category: z.string().trim().min(2, "La categoría es obligatoria"),
   price: z.coerce.number().positive("El precio debe ser mayor que 0"), // Uso coerce para convertir a número valores que suelen llegar como texto desde el formulario.
   zone: z.string().trim().min(2, "La zona es obligatoria"),
-  imageUrl: z.preprocess(
-    // Uso preprocess para que si llega "" desde el formulario se transforme en undefined y no falle al no ser obligatoria.
-    (value) => (value === "" ? undefined : value),
-    z.string().trim().url("La imagen debe ser una URL válida").optional(),
-  ),
 });
 
 // Esquema para actualizar servicio
@@ -27,13 +27,7 @@ const updateServiceSchema = z.object({
   category: z.string().trim().min(2).optional(),
   price: z.coerce.number().positive().optional(), // Igual que arriba: convierto a número por si el valor llega como string en req.body.
   zone: z.string().trim().min(2).optional(),
-  imageUrl: z
-    .union([
-      z.string().trim().url("La imagen debe ser una URL válida"), // Permito una URL válida si el usuario quiere guardar una imagen.
-      z.literal(""), // También permito una cadena vacía por si el campo llega vacío desde el formulario.
-    ])
-    .optional(),
-  isActive: z.boolean().optional(),
+  isActive: z.coerce.boolean().optional(),
 });
 
 // Función auxiliar para calcular la media de puntuación y el total de reseñas.
@@ -200,10 +194,22 @@ async function getServiceById(req, res) {
 // Controlador para crear un nuevo servicio.
 // Valida los datos recibidos, crea el servicio en la base de datos y devuelve también información básica del profesional que lo publica.
 async function createService(req, res) {
-  // Valido los datos recibidos en el body usando el esquema de Zod.
-  // "price" se convierte automáticamente a número gracias a z.coerce.number().
   try {
+    // Valido los datos recibidos en el body usando el esquema de Zod.
+    // "price" se convierte automáticamente a número gracias a z.coerce.number().
     const data = createServiceSchema.parse(req.body);
+
+    // Inicializo la URL y el identificador de la imagen en null por si no se ha subido ningún archivo.
+    let imageUrl = null;
+    let imageId = null;
+
+    // Si llega un archivo en req.file, lo subo a Cloudinary y guardo la URL segura y el identificador público de la imagen.
+    if (req.file) {
+      const uploadedImage = await uploadToCloudinary(req.file.buffer);
+
+      imageUrl = uploadedImage.secure_url;
+      imageId = uploadedImage.public_id;
+    }
 
     // Creo el servicio en la base de datos con los datos validados y lo asocio al profesional autenticado mediante req.user.id.
     const service = await prisma.service.create({
@@ -213,7 +219,8 @@ async function createService(req, res) {
         category: data.category,
         price: data.price,
         zone: data.zone,
-        imageUrl: data.imageUrl || null, // Si no se ha enviado imagen, guardo null en la base de datos.
+        imageUrl,
+        imageId,
         proId: req.user.id,
       },
       include: {
@@ -261,6 +268,8 @@ async function createService(req, res) {
 // Comprueba que el id sea válido, verifica que el servicio exista y que el usuario
 // tenga permisos para editarlo, valida los datos recibidos y actualiza el servicio.
 async function updateService(req, res) {
+  let uploadedImage = null;
+
   try {
     // Convierto el id recibido por params a número para poder consultarlo en la consulta.
     const id = Number(req.params.id);
@@ -272,9 +281,9 @@ async function updateService(req, res) {
 
     // Compruebo que la petición incluya al menos un campo para actualizar
     // Evito responder como si se hubiera modificado algo cuando no se ha enviado ningún dato.
-    if (Object.keys(req.body).length === 0) {
+    if (Object.keys(req.body).length === 0 && !req.file) {
       return res.status(400).json({
-        message: "Debes enviar al menos un campo para actualizar",
+        message: "Debes enviar al menos un campo o una imagen para actualizar",
       });
     }
 
@@ -299,9 +308,10 @@ async function updateService(req, res) {
     const data = updateServiceSchema.parse(req.body);
 
     // Compruebo que, después de validar, siga habiendo al menos un campo válido para actualizar.
-    if (Object.keys(data).length === 0) {
+    if (Object.keys(data).length === 0 && !req.file) {
       return res.status(400).json({
-        message: "Debes enviar al menos un campo válido para actualizar",
+        message:
+          "Debes enviar al menos un campo válido o una imagen para actualizar",
       });
     }
 
@@ -310,6 +320,17 @@ async function updateService(req, res) {
       // Si imageUrl llega como cadena vacía, la convierto a null para guardar que el servicio no tiene imagen.
       ...(data.imageUrl === "" ? { imageUrl: null } : {}),
     };
+
+    // Guardo el id de la imagen antigua por si luego hay que borrarla tras actualizar la BD.
+    const oldImageId = existingService.imageId;
+
+    // Si se ha enviado una nueva imagen, la subo a Cloudinary para guardar después su URL e identificador en la base de datos.
+    if (req.file) {
+      uploadedImage = await uploadToCloudinary(req.file.buffer);
+
+      normalizedData.imageUrl = uploadedImage.secure_url;
+      normalizedData.imageId = uploadedImage.public_id;
+    }
 
     // Actualizo el servicio en la base de datos con los datos validados e incluyo información básica del profesional asociado y las reseñas para poder calcular la media.
     const updatedService = await prisma.service.update({
@@ -331,6 +352,18 @@ async function updateService(req, res) {
       },
     });
 
+    // Si la BD se ha actualizado bien y había imagen antigua, intento borrarla después.
+    if (uploadedImage && oldImageId) {
+      try {
+        await deleteFromCloudinary(oldImageId);
+      } catch (cloudinaryError) {
+        console.error(
+          "No se pudo borrar la imagen antigua de Cloudinary:",
+          cloudinaryError.message,
+        );
+      }
+    }
+
     // Calculo la media y el total de reseñas del servicio actualizado.
     const { averageRating, reviewsCount } = calculateRatingData(
       updatedService.reviews,
@@ -349,6 +382,18 @@ async function updateService(req, res) {
       },
     });
   } catch (error) {
+    // Si ya se había subido una imagen nueva pero ha fallado después, intento borrarla para no dejar archivos huérfanos en Cloudinary.
+    if (uploadedImage?.public_id) {
+      try {
+        await deleteFromCloudinary(uploadedImage.public_id);
+      } catch (cloudinaryError) {
+        console.error(
+          "No se pudo borrar la imagen nueva tras el error:",
+          cloudinaryError.message,
+        );
+      }
+    }
+
     // Si la validación de Zod falla, devuelvo un 400 con el detalle de los campos que no cumplen el esquema.
     if (error instanceof z.ZodError) {
       return res.status(400).json({
@@ -398,10 +443,25 @@ async function deleteService(req, res) {
         .json({ message: "No puedes eliminar este servicio" });
     }
 
+    // Guardo el imageId antiguo para intentar borrar la imagen después de eliminar el servicio de la BD.
+    const oldImageId = existingService.imageId;
+
     // Elimino el servicio de la base de datos.
     await prisma.service.delete({
       where: { id },
     });
+
+    // Si el servicio tenía imagen en Cloudinary, intento borrarla después.
+    if (oldImageId) {
+      try {
+        await deleteFromCloudinary(oldImageId);
+      } catch (cloudinaryError) {
+        console.error(
+          "No se pudo borrar la imagen de Cloudinary:",
+          cloudinaryError.message,
+        );
+      }
+    }
 
     // Si todo va bien, respondo con código 200 y un mensaje de confirmación.
     return res
