@@ -12,6 +12,7 @@ const authRoutes = require("./routes/auth.routes");
 const servicesRoutes = require("./routes/services.routes");
 const requestsRoutes = require("./routes/requests.routes");
 const reviewsRoutes = require("./routes/reviews.routes");
+const usersRoutes = require("./routes/users.routes");
 
 const app = express();
 
@@ -44,6 +45,9 @@ app.use("/requests", requestsRoutes);
 
 // Creo el endpoint /reviews para gestionar las reseñas de servicios completados.
 app.use("/reviews", reviewsRoutes);
+
+// Creo el endpoint /users para gestionar perfil y panel del usuario autenticado.
+app.use("/users", usersRoutes);
 
 // Gestiono los errores 404 de forma genérica (ruta no encontrada)
 app.use((req, res) => {

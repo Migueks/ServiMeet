@@ -170,36 +170,5 @@ async function login(req, res) {
   }
 }
 
-async function me(req, res) {
-  try {
-    // req.user lo añade previamente el middleware isAuth tras validar el JWT.
-    const userId = req.user.id;
-
-    // Busco el usuario en la base de datos y devuelvo solo campos seguros (sin contraseña).
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        city: true,
-        createdAt: true,
-      },
-    });
-
-    // Si el token es válido pero el usuario ya no existe (se ha borrado), devuelvo error 404.
-    if (!user) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
-    }
-
-    return res.status(200).json({ user });
-  } catch (error) {
-    return res
-      .status(500)
-      .json({ message: "Error al obtener el usuario", error: error.message });
-  }
-}
-
 // Exporto los controladores para usarlos en las rutas de /auth
-module.exports = { register, login, me };
+module.exports = { register, login };
