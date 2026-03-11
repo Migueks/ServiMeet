@@ -42,9 +42,7 @@ model Service {
   id          Int      @id @default(autoincrement())
   title       String
   description String
-  category    String
   price       Float
-  zone        String
   imageUrl    String?
   imageId     String?
   isActive    Boolean  @default(true)
@@ -54,11 +52,18 @@ model Service {
   proId Int
   pro   User @relation("ProServices", fields: [proId], references: [id], onDelete: Cascade)
 
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  cityId Int
+  city   City @relation(fields: [cityId], references: [id])
+
   requests Request[]
   reviews  Review[]
 
   @@index([proId])
-  @@index([category])
+  @@index([categoryId])
+  @@index([cityId])
   @@index([isActive])
 }
 
@@ -110,4 +115,22 @@ model Review {
   @@index([serviceId])
   @@index([clientId])
   @@index([proId])
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  services Service[]
+}
+
+model City {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  services Service[]
 }

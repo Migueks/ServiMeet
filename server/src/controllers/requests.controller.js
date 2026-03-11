@@ -96,9 +96,21 @@ async function createRequest(req, res) {
           select: {
             id: true,
             title: true,
-            category: true,
             price: true,
-            zone: true,
+            imageUrl: true,
+            isActive: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            city: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         client: {
@@ -147,16 +159,27 @@ async function getMyClientRequests(req, res) {
         createdAt: "desc",
       },
 
-      // Incluyo información básica del servicio solicitad y del profesional asociado a cada solicitud.
+      // Incluyo información básica del servicio solicitado y del profesional asociado a cada solicitud.
       include: {
         service: {
           select: {
             id: true,
             title: true,
-            category: true,
             price: true,
-            zone: true,
             imageUrl: true,
+            isActive: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            city: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         pro: {
@@ -190,20 +213,33 @@ async function getMyProRequests(req, res) {
       where: {
         proId: req.user.id,
       },
+
       // Ordeno las solicitudes por fecha de creación descendente para mostrar primero las más recientes.
       orderBy: {
         createdAt: "desc",
       },
+
       // Incluyo información básica del servicio solicitado y del cliente que ha creado cada solicitud.
       include: {
         service: {
           select: {
             id: true,
             title: true,
-            category: true,
             price: true,
-            zone: true,
             imageUrl: true,
+            isActive: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            city: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         client: {
@@ -286,9 +322,21 @@ async function updateRequestStatus(req, res) {
           select: {
             id: true,
             title: true,
-            category: true,
             price: true,
-            zone: true,
+            imageUrl: true,
+            isActive: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            city: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         client: {

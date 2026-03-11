@@ -2,14 +2,17 @@ const { z } = require("zod");
 const prisma = require("../config/prisma");
 
 // Esquema para actualizar el perfil del usuario autenticado.
-// Solo permite modificar campos del perfil. No permite cambiar ni el role ni la password desde esta ruta.
+// Solo permite modificar campos del perfil.
+// No permito cambiar ni el role ni la password desde esta ruta.
 const updateMyProfileSchema = z.object({
   name: z
     .string()
     .trim()
     .min(2, "El nombre debe tener al menos 2 caracteres")
     .optional(),
+
   email: z.string().trim().email("El email no es válido").optional(),
+
   city: z.preprocess(
     // Si desde el formulario llega una cadena vacía (""),
     // la transformo a null para poder guardar "sin ciudad".
@@ -21,6 +24,7 @@ const updateMyProfileSchema = z.object({
       .nullable()
       .optional(),
   ),
+
   avatarUrl: z.preprocess(
     // Si desde el formulario llega una cadena vacía (""),
     // la transformo a null para poder guardar "sin avatar".
@@ -62,13 +66,16 @@ function calculateRatingData(reviews) {
 }
 
 // Controlador para obtener el perfil del usuario autenticado.
-// Recupera el id del usuario desde req.user, busca sus datos en la base de datos y devuelve únicamente campos seguros para no exponer información sensible.
+// Recupera el id del usuario desde req.user, busca sus datos en la base de datos
+// y devuelve únicamente campos seguros para no exponer información sensible.
 async function getMyProfile(req, res) {
   try {
-    // Obtengo el id del usuario autenticado desde req.user, que ha sido añadido previamente por el middleware isAuth.
+    // Obtengo el id del usuario autenticado desde req.user,
+    // que ha sido añadido previamente por el middleware isAuth.
     const userId = req.user.id;
 
-    // Busco al usuario en la base de datos y selecciono solo los campos que se pueden devolver de forma segura en la respuesta.
+    // Busco al usuario en la base de datos y selecciono solo los campos
+    // que se pueden devolver de forma segura en la respuesta.
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -83,7 +90,8 @@ async function getMyProfile(req, res) {
       },
     });
 
-    // Si el token es válido pero el usuario ya no existe en la base de datos, devuelvo un 404 indicando que no se ha encontrado.
+    // Si el token es válido pero el usuario ya no existe en la base de datos,
+    // devuelvo un 404 indicando que no se ha encontrado.
     if (!user) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
@@ -91,7 +99,7 @@ async function getMyProfile(req, res) {
     // Si todo va bien, respondo con código 200 y los datos del usuario.
     return res.status(200).json({ user });
   } catch (error) {
-    // Si ocurre cualquier error durante la consulta, devuelvo un 500 junto con un mensaje y el detalle del error.
+    // Si ocurre cualquier error durante la consulta, devuelvo un 500.
     return res.status(500).json({
       message: "Error al obtener el perfil del usuario",
       error: error.message,
@@ -124,7 +132,8 @@ async function updateMyProfile(req, res) {
       });
     }
 
-    // Compruebo que, después de validar, siga habiendo al menos un campo válido para actualizar.
+    // Compruebo que, después de validar, siga habiendo al menos
+    // un campo válido para actualizar.
     if (Object.keys(parsedData.data).length === 0) {
       return res.status(400).json({
         message: "Debes enviar al menos un campo válido para actualizar",
@@ -157,9 +166,10 @@ async function updateMyProfile(req, res) {
     });
 
     // Si todo sale bien, respondo con un 200 y el usuario actualizado.
-    return res
-      .status(200)
-      .json({ message: "Perfil actualizado correctamente", user: updatedUser });
+    return res.status(200).json({
+      message: "Perfil actualizado correctamente",
+      user: updatedUser,
+    });
   } catch (error) {
     // Si el email ya existe en otro usuario, Prisma lanza error de unique constraint.
     if (error.code === "P2002") {
@@ -176,14 +186,33 @@ async function updateMyProfile(req, res) {
 }
 
 // Controlador para obtener los servicios del profesional autenticado.
-// Busca primero los datos básicos del usuario y, según su rol, devuelve estadísticas diferentes para CLIENT, PRO o ADMIN.
+// Devuelve también la categoría, la ciudad, la media de valoración y el total de reseñas de cada servicio.
 async function getMyServices(req, res) {
   try {
-    // Busco en la base de datos todos los servicios cuyo propietario sea el usuario autenticado y los ordeno del más reciente al más antiguo.
+    // Busco en la base de datos todos los servicios cuyo propietario
+    // sea el usuario autenticado y los ordeno del más reciente al más antiguo.
     const services = await prisma.service.findMany({
       where: { proId: req.user.id },
       orderBy: { createdAt: "desc" },
       include: {
+        // Incluyo la categoría relacionada del servicio.
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+
+        // Incluyo la ciudad relacionada del servicio.
+        city: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+
+        // Incluyo solo las puntuaciones de las reseñas para calcular después
+        // la media y el número total de valoraciones.
         reviews: {
           select: {
             rating: true,
@@ -192,16 +221,20 @@ async function getMyServices(req, res) {
       },
     });
 
-    // Recorro los servicios para calcular la media de puntuación y el total de reseñas de cada uno.
+    // Recorro los servicios para calcular la media de puntuación
+    // y el total de reseñas de cada uno.
     const formattedServices = services.map((service) => {
       // Calculo la media de valoración y la cantidad de reseñas del servicio.
       const { averageRating, reviewsCount } = calculateRatingData(
         service.reviews,
       );
-      // Separo el array reviews del resto de datos para no devolverlo en la respuesta final.
+
+      // Separo el array reviews del resto de datos para no devolverlo
+      // en la respuesta final.
       const { reviews, ...serviceWithoutReviews } = service;
 
-      // Devuelvo un nuevo objeto con los datos del servicio más la media de valoración y el número de reseñas.
+      // Devuelvo un nuevo objeto con los datos del servicio
+      // más la media de valoración y el número de reseñas.
       return {
         ...serviceWithoutReviews,
         averageRating,
@@ -212,7 +245,7 @@ async function getMyServices(req, res) {
     // Si todo va bien, respondo con código 200 y los servicios formateados.
     return res.status(200).json({ services: formattedServices });
   } catch (error) {
-    // Si ocurre cualquier error durante la consulta, devuelvo un 500 junto con un mensaje y el detalle del error.
+    // Si ocurre cualquier error durante la consulta, devuelvo un 500.
     return res.status(500).json({
       message: "Error al obtener los servicios del usuario",
       error: error.message,
@@ -224,7 +257,8 @@ async function getMyServices(req, res) {
 // Devuelve estadísticas distintas según el rol del usuario.
 async function getMyDashboard(req, res) {
   try {
-    // Busco al usuario autenticado en la base de datos y selecciono solo los campos seguros que quiero devolver.
+    // Busco al usuario autenticado en la base de datos y selecciono
+    // solo los campos seguros que quiero devolver.
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
       select: {
@@ -243,7 +277,7 @@ async function getMyDashboard(req, res) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
-    // Si el usuario es CLIENT, devuelvo estadísticas de sus solicitudes y reseñas realizadas.
+    // Si el usuario es CLIENT, devuelvo estadísticas relacionadas con sus solicitudes y reseñas realizadas.
     if (user.role === "CLIENT") {
       // Lanzo todas las consultas en paralelo para mejorar el rendimiento.
       const [
@@ -287,7 +321,8 @@ async function getMyDashboard(req, res) {
       });
     }
 
-    // Si el usuario es PRO, devuelvo estadísticas de servicios, solicitudes recibidas y valoraciones recibidas.
+    // Si el usuario es PRO, devuelvo estadísticas relacionadas con sus servicios,
+    // las solicitudes recibidas y las valoraciones recibidas.
     if (user.role === "PRO") {
       // Lanzo todas las consultas en paralelo para mejorar el rendimiento.
       const [
@@ -303,13 +338,23 @@ async function getMyDashboard(req, res) {
         reviewsSummary,
       ] = await Promise.all([
         prisma.service.count({ where: { proId: user.id } }),
-        prisma.service.count({ where: { proId: user.id, isActive: true } }),
-        prisma.service.count({ where: { proId: user.id, isActive: false } }),
+        prisma.service.count({
+          where: { proId: user.id, isActive: true },
+        }),
+        prisma.service.count({
+          where: { proId: user.id, isActive: false },
+        }),
         prisma.request.count({ where: { proId: user.id } }),
-        prisma.request.count({ where: { proId: user.id, status: "PENDING" } }),
-        prisma.request.count({ where: { proId: user.id, status: "ACCEPTED" } }),
+        prisma.request.count({
+          where: { proId: user.id, status: "PENDING" },
+        }),
+        prisma.request.count({
+          where: { proId: user.id, status: "ACCEPTED" },
+        }),
         prisma.request.count({ where: { proId: user.id, status: "DONE" } }),
-        prisma.request.count({ where: { proId: user.id, status: "REJECTED" } }),
+        prisma.request.count({
+          where: { proId: user.id, status: "REJECTED" },
+        }),
         prisma.request.count({
           where: { proId: user.id, status: "CANCELLED" },
         }),
@@ -387,7 +432,7 @@ async function getMyDashboard(req, res) {
     // Si el rol no coincide con ninguno de los esperados, devuelvo un error.
     return res.status(400).json({ message: "Rol de usuario no válido" });
   } catch (error) {
-    // Si ocurre cualquier error durante el proceso, devuelvo un 500 junto con un mensaje y el detalle del error.
+    // Si ocurre cualquier error durante el proceso, devuelvo un 500.
     return res.status(500).json({
       message: "Error al obtener el dashboard del usuario",
       error: error.message,

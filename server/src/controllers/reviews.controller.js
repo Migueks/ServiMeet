@@ -36,7 +36,7 @@ async function createReview(req, res) {
       });
     }
 
-    // Extraigo los datos ya validados
+    // Extraigo los datos ya validados.
     const { requestId, rating, comment } = parsedData.data;
 
     // Busco la solicitud para comprobar que exista y obtengo también su reseña y servicio relacionados.
@@ -103,7 +103,20 @@ async function createReview(req, res) {
           select: {
             id: true,
             title: true,
-            category: true,
+            price: true,
+            imageUrl: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            city: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },
@@ -216,9 +229,20 @@ async function getMyReviews(req, res) {
           select: {
             id: true,
             title: true,
-            category: true,
             price: true,
-            zone: true,
+            imageUrl: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            city: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },

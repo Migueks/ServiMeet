@@ -1,4 +1,3 @@
-const { includes } = require("zod");
 const prisma = require("../config/prisma");
 
 // Función auxiliar para calcular la valoración media de un servicio y el número total de reseñas a partir de un array de reviews.
@@ -59,7 +58,7 @@ async function getAllUsers(req, res) {
 }
 
 // Controlador para que el admin vea todos los servicios, estén activos o no.
-// Incluyo datos básicos del profesional y un resumen de valoraciones.
+// Incluyo datos básicos del profesional, la categoría, la ciudad y un resumen de valoraciones.
 async function getAllServicesAdmin(req, res) {
   try {
     // Busco todos los servicios en la base de datos.
@@ -74,6 +73,20 @@ async function getAllServicesAdmin(req, res) {
             name: true,
             email: true,
             city: true,
+          },
+        },
+        // Incluyo la categoría relacionada del servicio.
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        // Incluyo la ciudad relacionada del servicio.
+        city: {
+          select: {
+            id: true,
+            name: true,
           },
         },
         // Incluyo solo la puntuación de cada reseña para calcular después la media de valoraciones y el número total de reviews.
@@ -124,7 +137,8 @@ async function toggleServiceActive(req, res) {
       return res.status(400).json({ message: "ID de servicio no válido" });
     }
 
-    // Busco el servicio actual para comprobar que exista y obtener también sus reseñas y los datos básicos del profesional.
+    // Busco el servicio actual para comprobar que exista y obtener también sus reseñas,
+    // la categoría, la ciudad y los datos básicos del profesional.
     const existingService = await prisma.service.findUnique({
       where: { id },
       include: {
@@ -139,6 +153,18 @@ async function toggleServiceActive(req, res) {
             name: true,
             city: true,
             email: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        city: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
@@ -167,6 +193,18 @@ async function toggleServiceActive(req, res) {
             name: true,
             city: true,
             email: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        city: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
@@ -215,11 +253,21 @@ async function getAllRequestsAdmin(req, res) {
           select: {
             id: true,
             title: true,
-            category: true,
             price: true,
-            zone: true,
             imageUrl: true,
             isActive: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            city: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         // Incluyo datos básicos del cliente que ha creado la solicitud.
@@ -254,12 +302,12 @@ async function getAllRequestsAdmin(req, res) {
   }
 }
 
-// Controlador para que le admin vea todas las reseñas de la plataforma.
+// Controlador para que el admin vea todas las reseñas de la plataforma.
 // Incluyo información básica del servicio, cliente y profesional.
 async function getAllReviewsAdmin(req, res) {
   try {
     // Busco todas las reseñas en la base de datos.
-    // Las ordeno desde la más reciente hasta la más antigua según su fecha de creación.
+    // Las ordeno desde la más reciente hasta la más antigua.
     const reviews = await prisma.review.findMany({
       orderBy: { createdAt: "desc" },
       include: {
@@ -268,9 +316,20 @@ async function getAllReviewsAdmin(req, res) {
           select: {
             id: true,
             title: true,
-            category: true,
             price: true,
-            zone: true,
+            imageUrl: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            city: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         // Incluyo datos básicos del cliente que escribió la reseña.
@@ -282,7 +341,7 @@ async function getAllReviewsAdmin(req, res) {
             city: true,
           },
         },
-        // Incluyo datos básicos del profesional que recibe la reseña.
+        // Incluyo datos básicos del profesional que recibió la reseña.
         pro: {
           select: {
             id: true,
@@ -305,7 +364,7 @@ async function getAllReviewsAdmin(req, res) {
   }
 }
 
-// Exporto los controladores de admin para poder utilizarlos en sus rutas correspondientes.
+// Exporto los controladores del módulo admin para poder utilizarlos en sus rutas correspondientes.
 module.exports = {
   getAllUsers,
   getAllServicesAdmin,

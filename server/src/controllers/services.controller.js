@@ -14,9 +14,15 @@ const createServiceSchema = z.object({
     .string()
     .trim()
     .min(10, "La descripción debe tener al menos 10 caracteres"),
-  category: z.string().trim().min(2, "La categoría es obligatoria"),
+  categoryId: z.coerce
+    .number()
+    .int("La categoría debe ser válida")
+    .positive("La categoría debe ser válida"),
+  cityId: z.coerce
+    .number()
+    .int("La ciudad debe ser válida")
+    .positive("La ciudad debe ser válida"),
   price: z.coerce.number().positive("El precio debe ser mayor que 0"), // Uso coerce para convertir a número valores que suelen llegar como texto desde el formulario.
-  zone: z.string().trim().min(2, "La zona es obligatoria"),
 });
 
 // Esquema para actualizar servicio
@@ -24,14 +30,22 @@ const createServiceSchema = z.object({
 const updateServiceSchema = z.object({
   title: z.string().trim().min(3).optional(),
   description: z.string().trim().min(10).optional(),
-  category: z.string().trim().min(2).optional(),
+  categoryId: z.coerce
+    .number()
+    .int("La categoría debe ser válida")
+    .positive("La categoría debe ser válida")
+    .optional(),
+  cityId: z.coerce
+    .number()
+    .int("La ciudad debe ser válida")
+    .positive("La ciudad debe ser válida")
+    .optional(),
   price: z.coerce.number().positive().optional(), // Igual que arriba: convierto a número por si el valor llega como string en req.body.
-  zone: z.string().trim().min(2).optional(),
-  isActive: z.boolean().optional(),
+  isActive: z.coerce.boolean().optional(),
 });
 
 // Función auxiliar para calcular la media de puntuación y el total de reseñas.
-// La creo para no repetir lógica en varios controladores
+// La creo para no repetir lógica en varios controladores.
 function calculateRatingData(reviews) {
   // Guardo el número total de reseñas recibidas.
   const reviewsCount = reviews.length;
@@ -59,7 +73,7 @@ function calculateRatingData(reviews) {
 
 // Controlador para obtener todos los servicios activos.
 // Busca los servicios en base de datos, los ordena del más reciente al más antiguo.
-// Incluye información básica del profesional asociado a cada servicio.
+// Incluye información básica del profesional asociado a cada servicio, su categoría, su ciudad y sus reseñas para calcular la media.
 async function getAllServices(req, res) {
   try {
     // Consulto en la base de datos todos los servicios que estén activos.
@@ -71,7 +85,8 @@ async function getAllServices(req, res) {
       // Así los más nuevos aparecen primero.
       orderBy: { createdAt: "desc" },
 
-      // Incluyo datos básicos del profesional relacionado con cada servicio.
+      // Incluyo datos básicos del profesional relacionado con cada servicio,
+      // su categoría, su ciudad y sus reseñas para calcular la media.
       include: {
         pro: {
           select: {
@@ -79,6 +94,18 @@ async function getAllServices(req, res) {
             name: true,
             city: true,
             avatarUrl: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        city: {
+          select: {
+            id: true,
+            name: true,
           },
         },
         reviews: {
@@ -112,7 +139,7 @@ async function getAllServices(req, res) {
     // Si todo va bien, respondo con código 200 y los servicios obtenidos.
     return res.status(200).json({ services: formattedServices });
   } catch (error) {
-    // Si ocurre un error durante la consulta, devuelvo un 500 junto un mensaje y el detalle del error
+    // Si ocurre un error durante la consulta, devuelvo un 500 junto un mensaje y el detalle del error.
     return res.status(500).json({
       message: "Error al obtener los servicios",
       error: error.message,
@@ -122,7 +149,7 @@ async function getAllServices(req, res) {
 
 // Controlador para obtener un servicio por su id.
 // Busca el servicio en base de datos usando el id recibido en los parámetros.
-// Incluye información básica del profesional y sus reseñas asociadas.
+// Incluye información básica del profesional, su categoría, su ciudad y sus reseñas asociadas.
 async function getServiceById(req, res) {
   try {
     // Convierto el id recibido por params a número para poder consultarlo en la base de datos.
@@ -133,8 +160,8 @@ async function getServiceById(req, res) {
       return res.status(400).json({ message: "ID de servicio no válido" });
     }
 
-    // Busco el servicio por su id e incluyo datos básicos del profesional
-    // y las reseñas relacionadas ordenadas de más reciente a más antigua.
+    // Busco el servicio por su id e incluyo datos básicos del profesional,
+    // la categoría, la ciudad y las reseñas relacionadas ordenadas de más reciente a más antigua.
     const service = await prisma.service.findUnique({
       where: { id },
       include: {
@@ -144,6 +171,18 @@ async function getServiceById(req, res) {
             name: true,
             city: true,
             avatarUrl: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        city: {
+          select: {
+            id: true,
+            name: true,
           },
         },
         reviews: {
@@ -192,12 +231,31 @@ async function getServiceById(req, res) {
 }
 
 // Controlador para crear un nuevo servicio.
-// Valida los datos recibidos, crea el servicio en la base de datos y devuelve también información básica del profesional que lo publica.
+// Valida los datos recibidos, comprueba que existan la categoría y la ciudad,
+// crea el servicio en la base de datos y devuelve también información básica del profesional que lo publica.
 async function createService(req, res) {
   try {
     // Valido los datos recibidos en el body usando el esquema de Zod.
-    // "price" se convierte automáticamente a número gracias a z.coerce.number().
+    // "price", "categoryId" y "cityId" se convierten automáticamente a número gracias a z.coerce.number().
     const data = createServiceSchema.parse(req.body);
+
+    // Compruebo que la categoría exista.
+    const categoryExists = await prisma.category.findUnique({
+      where: { id: data.categoryId },
+    });
+
+    if (!categoryExists) {
+      return res.status(404).json({ message: "Categoría no encontrada" });
+    }
+
+    // Compruebo que la ciudad exista.
+    const cityExists = await prisma.city.findUnique({
+      where: { id: data.cityId },
+    });
+
+    if (!cityExists) {
+      return res.status(404).json({ message: "Ciudad no encontrada" });
+    }
 
     // Inicializo la URL y el identificador de la imagen en null por si no se ha subido ningún archivo.
     let imageUrl = null;
@@ -216,9 +274,9 @@ async function createService(req, res) {
       data: {
         title: data.title,
         description: data.description,
-        category: data.category,
+        categoryId: data.categoryId,
+        cityId: data.cityId,
         price: data.price,
-        zone: data.zone,
         imageUrl,
         imageId,
         proId: req.user.id,
@@ -231,11 +289,22 @@ async function createService(req, res) {
             city: true,
           },
         },
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        city: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 
-    // Al crearse un servicio nuevo todavía no tiene reseñas,
-    // así que devuelvo la media a 0 y el contador a 0.
+    // Al crearse un servicio nuevo todavía no tiene reseñas, así que devuelvo la media a 0 y el contador a 0.
     return res.status(201).json({
       message: "Servicio creado correctamente",
       service: {
@@ -265,8 +334,7 @@ async function createService(req, res) {
 }
 
 // Controlador para actualizar un servicio existente.
-// Comprueba que el id sea válido, verifica que el servicio exista y que el usuario
-// tenga permisos para editarlo, valida los datos recibidos y actualiza el servicio.
+// Comprueba que el id sea válido, verifica que el servicio exista y que el usuario tenga permisos para editarlo, valida los datos recibidos, comprueba si la nueva categoría y la nueva ciudad existen, gestiona una posible nueva imagen y actualiza el servicio.
 async function updateService(req, res) {
   let uploadedImage = null;
 
@@ -279,7 +347,7 @@ async function updateService(req, res) {
       return res.status(400).json({ message: "ID de servicio no válido" });
     }
 
-    // Compruebo que la petición incluya al menos un campo para actualizar
+    // Compruebo que la petición incluya al menos un campo para actualizar.
     // Evito responder como si se hubiera modificado algo cuando no se ha enviado ningún dato.
     if (Object.keys(req.body).length === 0 && !req.file) {
       return res.status(400).json({
@@ -315,11 +383,29 @@ async function updateService(req, res) {
       });
     }
 
-    const normalizedData = {
-      ...data,
-      // Si imageUrl llega como cadena vacía, la convierto a null para guardar que el servicio no tiene imagen.
-      ...(data.imageUrl === "" ? { imageUrl: null } : {}),
-    };
+    // Si se quiere cambiar la categoría, compruebo que exista.
+    if (data.categoryId !== undefined) {
+      const categoryExists = await prisma.category.findUnique({
+        where: { id: data.categoryId },
+      });
+
+      if (!categoryExists) {
+        return res.status(404).json({ message: "Categoría no encontrada" });
+      }
+    }
+
+    // Si se quiere cambiar la ciudad, compruebo que exista.
+    if (data.cityId !== undefined) {
+      const cityExists = await prisma.city.findUnique({
+        where: { id: data.cityId },
+      });
+
+      if (!cityExists) {
+        return res.status(404).json({ message: "Ciudad no encontrada" });
+      }
+    }
+
+    const normalizedData = { ...data };
 
     // Guardo el id de la imagen antigua por si luego hay que borrarla tras actualizar la BD.
     const oldImageId = existingService.imageId;
@@ -332,7 +418,7 @@ async function updateService(req, res) {
       normalizedData.imageId = uploadedImage.public_id;
     }
 
-    // Actualizo el servicio en la base de datos con los datos validados e incluyo información básica del profesional asociado y las reseñas para poder calcular la media.
+    // Actualizo el servicio en la base de datos con los datos validados e incluyo información básica del profesional asociado, la categoría, la ciudad y las reseñas para poder calcular la media.
     const updatedService = await prisma.service.update({
       where: { id },
       data: normalizedData,
@@ -342,6 +428,18 @@ async function updateService(req, res) {
             id: true,
             name: true,
             city: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        city: {
+          select: {
+            id: true,
+            name: true,
           },
         },
         reviews: {
@@ -414,8 +512,7 @@ async function updateService(req, res) {
 }
 
 // Controlador para eliminar un servicio existente.
-// Comprueba que el id sea válido, verifica que el servicio exista y que el usuario
-// tenga permisos para eliminarlo antes de borrarlo de la base de datos.
+// Comprueba que el id sea válido, verifica que el servicio exista y que el usuario tenga permisos para eliminarlo antes de borrarlo de la base de datos.
 async function deleteService(req, res) {
   try {
     // Convierto el id recibido por params a número para poder consultarlo en la consulta.

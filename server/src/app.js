@@ -14,6 +14,7 @@ const requestsRoutes = require("./routes/requests.routes");
 const reviewsRoutes = require("./routes/reviews.routes");
 const usersRoutes = require("./routes/users.routes");
 const adminRoutes = require("./routes/admin.routes");
+const metaRoutes = require("./routes/meta.routes");
 
 const app = express();
 
@@ -52,6 +53,9 @@ app.use("/users", usersRoutes);
 
 // Creo el endpoint /admin para la gestión global de la plataforma por parte del administrador.
 app.use("/admin", adminRoutes);
+
+// Creo el endpoint /meta para exponer catálogos auxiliares como categorías y ciudades.
+app.use("/meta", metaRoutes);
 
 // Gestiono los errores 404 de forma genérica (ruta no encontrada)
 app.use((req, res) => {
