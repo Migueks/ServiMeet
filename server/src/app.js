@@ -16,6 +16,8 @@ const usersRoutes = require("./routes/users.routes");
 const adminRoutes = require("./routes/admin.routes");
 const metaRoutes = require("./routes/meta.routes");
 
+const errorHandler = require("./middlewares/errorHandler");
+
 const app = express();
 
 // Configuro cabeceras HTTP de seguridad con Helmet, reduciendo riesgos comunes.
@@ -61,7 +63,12 @@ app.use("/meta", metaRoutes);
 app.use((req, res) => {
   res
     .status(404)
-    .json({ message: `Recurso no encontrada: ${req.originalUrl}` });
+    .json({
+      message: `Recurso no encontrado: ${req.method} ${req.originalUrl}`,
+    });
 });
+
+// Manejador global de errores
+app.use(errorHandler);
 
 module.exports = app;

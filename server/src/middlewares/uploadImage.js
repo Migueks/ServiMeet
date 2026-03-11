@@ -8,7 +8,9 @@ const memoryStorage = multer.memoryStorage();
 function fileFilter(req, file, cb) {
   // Compruebo que el tipo MIME del archivo empiece por "image/".
   if (!file.mimetype.startsWith("image/")) {
-    return cb(new Error("Solo se permiten archivos de imagen"));
+    const error = new Error("Solo se permiten archivos de imagen");
+    error.statusCode = 400;
+    return cb(error);
   }
 
   // Si el archivo es válido, permito continuar con la subida.
