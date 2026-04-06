@@ -15,6 +15,7 @@ const reviewsRoutes = require("./routes/reviews.routes");
 const usersRoutes = require("./routes/users.routes");
 const adminRoutes = require("./routes/admin.routes");
 const metaRoutes = require("./routes/meta.routes");
+const contactRoutes = require("./routes/contact.routes");
 
 const errorHandler = require("./middlewares/errorHandler");
 
@@ -23,8 +24,13 @@ const app = express();
 // Configuro cabeceras HTTP de seguridad con Helmet, reduciendo riesgos comunes.
 app.use(helmet());
 
-// Configuro CORS con el middleware cors(), controlando qué orígenes pueden acceder a la API.
-app.use(cors());
+// Configuro CORS para permitir peticiones únicamente desde el frontend indicado en CLIENT_URL.
+// Si la variable no está definida, uso "http://localhost:5173" como valor por defecto para desarrollo.
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || "http://localhost:5173",
+  }),
+);
 
 // Parseo de JSON en el body (POST/PUT/PATCH)
 app.use(express.json());
@@ -59,13 +65,14 @@ app.use("/admin", adminRoutes);
 // Creo el endpoint /meta para exponer catálogos auxiliares como categorías y ciudades.
 app.use("/meta", metaRoutes);
 
+// Ruta de contacto
+app.use("/contact", contactRoutes);
+
 // Gestiono los errores 404 de forma genérica (ruta no encontrada)
 app.use((req, res) => {
-  res
-    .status(404)
-    .json({
-      message: `Recurso no encontrado: ${req.method} ${req.originalUrl}`,
-    });
+  res.status(404).json({
+    message: `Recurso no encontrado: ${req.method} ${req.originalUrl}`,
+  });
 });
 
 // Manejador global de errores

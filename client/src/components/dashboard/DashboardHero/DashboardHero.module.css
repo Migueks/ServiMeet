@@ -1,0 +1,45 @@
+.hero {
+  margin-bottom: var(--space-10);
+}
+
+.title {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xl);
+  line-height: 1.1;
+  color: var(--color-text);
+}
+
+.text {
+  color: var(--color-text-soft);
+  font-size: var(--font-size-base);
+}
+
+.content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.avatar,
+.avatarPlaceholder {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatarPlaceholder {
+  display: grid;
+  place-items: center;
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  font-weight: 700;
+  font-size: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .title {
+    font-size: var(--font-size-lg);
+  }
+}

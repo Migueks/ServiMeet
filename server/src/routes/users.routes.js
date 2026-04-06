@@ -5,6 +5,7 @@ const router = require("express").Router();
 const {
   getMyProfile,
   updateMyProfile,
+  deleteMyAvatar,
   getMyServices,
   getMyDashboard,
 } = require("../controllers/users.controller");
@@ -13,10 +14,15 @@ const {
 const isAuth = require("../middlewares/isAuth");
 const hasRole = require("../middlewares/hasRole");
 
+// Importo el middleware de subida de imágenes.
+const upload = require("../middlewares/uploadImage");
+
 // Ruta para obtener el perfil del usuario autenticado.
 router.get("/me", isAuth, getMyProfile);
 // Ruta para actualizar el perfil del usuario autenticado.
-router.put("/me", isAuth, updateMyProfile);
+router.put("/me", isAuth, upload.single("avatar"), updateMyProfile);
+// Ruta para eliminar el avatar
+router.delete("/me/avatar", isAuth, deleteMyAvatar);
 // Ruta para obtener los servicios del usuario autenticado.
 router.get("/me/services", isAuth, hasRole("PRO", "ADMIN"), getMyServices);
 // Ruta para obtener el dashboard del usuario autenticado.

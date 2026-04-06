@@ -41,6 +41,7 @@ async function getAllUsers(req, res) {
         role: true,
         city: true,
         avatarUrl: true,
+        isBlocked: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -49,10 +50,90 @@ async function getAllUsers(req, res) {
     // Si todo va bien, devuelvo un 200 junto con la lista de usuarios.
     return res.status(200).json({ users });
   } catch (error) {
-    // Si ocurre algún error al consultar los usuarios, devuelvo un 500.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener los usuarios:", error);
+
     return res.status(500).json({
       message: "Error al obtener los usuarios",
-      error: error.message,
+    });
+  }
+}
+
+// Controlador para bloquear o desbloquear un usuario.
+// No permito que un administrador se bloquee a sí mismo.
+async function toggleUserBlocked(req, res) {
+  try {
+    // Obtengo el id que llega por parámetro en la URL y lo convierto a número.
+    const id = Number(req.params.id);
+
+    // Si el id no es un número válido, devuelvo error 400.
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ message: "ID de usuario no válido" });
+    }
+
+    // Busco el usuario en la base de datos para comprobar que existe
+    // y para saber cuál es su estado actual (bloqueado o no).
+    const existingUser = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        city: true,
+        avatarUrl: true,
+        isBlocked: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    // Si el usuario no existe, devuelvo error 404.
+    if (!existingUser) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    // Evito que el administrador autenticado se bloquee a sí mismo.
+    // Así no pierde acceso al panel por error.
+    if (existingUser.id === req.user.id) {
+      return res.status(400).json({
+        message: "No puedes bloquear tu propia cuenta de administrador",
+      });
+    }
+
+    // Invierto el valor actual de isBlocked:
+    // - si estaba en false, pasa a true
+    // - si estaba en true, pasa a false
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: {
+        isBlocked: !existingUser.isBlocked,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        city: true,
+        avatarUrl: true,
+        isBlocked: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    // Devuelvo 200 con un mensaje dinámico según el nuevo estado del usuario
+    // y los datos actualizados para refrescar el panel de administración.
+    return res.status(200).json({
+      message: `Usuario ${updatedUser.isBlocked ? "bloqueado" : "desbloqueado"} correctamente`,
+      user: updatedUser,
+    });
+  } catch (error) {
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al cambiar el estado del usuario:", error);
+
+    return res.status(500).json({
+      message: "Error al cambiar el estado del usuario",
     });
   }
 }
@@ -117,10 +198,11 @@ async function getAllServicesAdmin(req, res) {
     // Si todo va bien, devuelvo un 200 junto con la lista de servicios formateados.
     return res.status(200).json({ services: formattedServices });
   } catch (error) {
-    // Si ocurre algún error al consultar los servicios, devuelvo un 500.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener los servicios:", error);
+
     return res.status(500).json({
       message: "Error al obtener los servicios",
-      error: error.message,
     });
   }
 }
@@ -230,10 +312,11 @@ async function toggleServiceActive(req, res) {
       },
     });
   } catch (error) {
-    // Si ocurre cualquier error durante el proceso, devuelvo un 500.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al cambiar el estado del servicio:", error);
+
     return res.status(500).json({
       message: "Error al cambiar el estado del servicio",
-      error: error.message,
     });
   }
 }
@@ -294,10 +377,11 @@ async function getAllRequestsAdmin(req, res) {
     // Si todo va bien, devuelvo un 200 junto con la lista de solicitudes.
     return res.status(200).json({ requests });
   } catch (error) {
-    // Si ocurre algún error al consultar las solicitudes, devuelvo un 500.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener las solicitudes:", error);
+
     return res.status(500).json({
       message: "Error al obtener las solicitudes",
-      error: error.message,
     });
   }
 }
@@ -356,10 +440,157 @@ async function getAllReviewsAdmin(req, res) {
     // Si todo va bien, devuelvo un 200 junto con la lista de reseñas.
     return res.status(200).json({ reviews });
   } catch (error) {
-    // Si ocurre algún error al consultar las reseñas, devuelvo un 500.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener las reseñas:", error);
+
     return res.status(500).json({
       message: "Error al obtener las reseñas",
-      error: error.message,
+    });
+  }
+}
+
+// Controlador para cambiar la visibilidad de una reseña.
+async function toggleReviewVisibility(req, res) {
+  try {
+    // Obtengo el id que llega por parámetro en la URL y lo convierto a número.
+    const id = Number(req.params.id);
+
+    // Si el id no es un número válido, devuelvo error 400.
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ message: "ID de reseña no válido" });
+    }
+
+    // Busco la reseña en la base de datos para comprobar que existe
+    // y para saber cuál es su visibilidad actual.
+    // Incluyo también la información relacionada que necesita el panel admin:
+    // servicio, cliente y profesional.
+    const existingReview = await prisma.review.findUnique({
+      where: { id },
+      include: {
+        service: {
+          select: {
+            id: true,
+            title: true,
+            price: true,
+            imageUrl: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            city: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            city: true,
+          },
+        },
+        pro: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            city: true,
+          },
+        },
+      },
+    });
+
+    // Si la reseña no existe, devuelvo error 404.
+    if (!existingReview) {
+      return res.status(404).json({ message: "Reseña no encontrada" });
+    }
+
+    // Invierto el valor actual de isVisible:
+    // - si estaba en true, pasa a false (oculta)
+    // - si estaba en false, pasa a true (visible otra vez)
+    const updatedReview = await prisma.review.update({
+      where: { id },
+      data: {
+        isVisible: !existingReview.isVisible,
+      },
+      include: {
+        service: {
+          select: {
+            id: true,
+            title: true,
+            price: true,
+            imageUrl: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            city: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            city: true,
+          },
+        },
+        pro: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            city: true,
+          },
+        },
+      },
+    });
+
+    // Devuelvo 200 con un mensaje dinámico según el nuevo estado de la reseña
+    // y la reseña actualizada para refrescar el panel de administración.
+    return res.status(200).json({
+      message: `Reseña ${updatedReview.isVisible ? "mostrada" : "ocultada"} correctamente`,
+      review: updatedReview,
+    });
+  } catch (error) {
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al cambiar la visibilidad de la reseña:", error);
+
+    return res.status(500).json({
+      message: "Error al cambiar la visibilidad de la reseña",
+    });
+  }
+}
+
+// Controlador para que un administrador obtenga todos los mensajes enviados desde el formulario de contacto.
+async function getAllContactMessagesAdmin(req, res) {
+  try {
+    // Busco todos los mensajes de contacto en la base de datos y los ordeno del más reciente al más antiguo.
+    const contactMessages = await prisma.contactMessage.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Devuelvo la lista de mensajes con respuesta OK
+    return res.status(200).json({ contactMessages });
+  } catch (error) {
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener los mensajes de contacto:", error);
+
+    return res.status(500).json({
+      message: "Error al obtener los mensajes de contacto",
     });
   }
 }
@@ -367,8 +598,11 @@ async function getAllReviewsAdmin(req, res) {
 // Exporto los controladores del módulo admin para poder utilizarlos en sus rutas correspondientes.
 module.exports = {
   getAllUsers,
+  toggleUserBlocked,
   getAllServicesAdmin,
   toggleServiceActive,
   getAllRequestsAdmin,
   getAllReviewsAdmin,
+  toggleReviewVisibility,
+  getAllContactMessagesAdmin,
 };

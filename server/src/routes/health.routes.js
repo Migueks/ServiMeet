@@ -1,40 +1,58 @@
 // Endpoints simples para comprobar que el backend funciona correctamente.
 
-// Creo un router de Express
+// Creo un router de Express.
 const router = require("express").Router();
+
 // Importo la instancia única de Prisma para hacer consultas a MySQL desde las rutas.
 const prisma = require("../config/prisma");
 
 // Endpoint GET "/health"
+// Sirve para comprobar de forma rápida que la API está levantada.
 router.get("/", (req, res) => {
-  // Devuelvo un JSON con información básica de estado para comprobar que la API funciona
-  res.json({
-    status: "ok", // estado simple
-    service: "ServiMeet API", // nombre del servicio
-    timestamp: new Date().toISOString(), // fecha/hora actual en formato ISO
+  // Devuelvo un JSON con información básica de estado.
+  return res.json({
+    status: "ok",
+    service: "ServiMeet API",
+    timestamp: new Date().toISOString(),
   });
 });
 
-// Endpoint GET "/health/db" -> Compruebo que Prisma consulta MySQL
+// Endpoint GET "/health/db"
+// Solo lo expongo en desarrollo o si se habilita explícitamente por variable de entorno.
 router.get("/db", async (req, res) => {
+  // En producción oculto esta ruta salvo que yo quiera activarla manualmente.
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.ENABLE_DB_HEALTHCHECK !== "true"
+  ) {
+    return res.status(404).json({
+      message: "Ruta no encontrada",
+    });
+  }
+
   try {
-    // Hago una consulta sencilla: contar cuántos usuarios hay en la tabla User
-    const userCount = await prisma.user.count();
-    // Si la consulta funciona, devuelvo estado OK e incluyo el recuento como prueba
-    res.json({
+    // Hago una comprobación mínima contra la base de datos.
+    // No expongo datos reales como número de usuarios ni información interna.
+    await prisma.$queryRaw`SELECT 1`;
+
+    return res.json({
       status: "ok",
       db: "connected",
-      userCount,
     });
   } catch (error) {
-    // Si falla (error de conexión, modelo inexistente, credenciales, etc.), devuelvo error 500
-    res.status(500).json({
+    // Muestro el error real solo en servidor para depuración.
+    console.error(
+      "Error al comprobar la conexión con la base de datos:",
+      error,
+    );
+
+    return res.status(500).json({
       status: "error",
       db: "not connected",
-      message: error.message,
+      message: "No se pudo comprobar la conexión con la base de datos",
     });
   }
 });
 
-// Exporto el router para poder importarlo y montarlo en el servidor principal
+// Exporto el router para poder importarlo y montarlo en el servidor principal.
 module.exports = router;

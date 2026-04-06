@@ -1,0 +1,223 @@
+.loginPage {
+  padding: var(--space-12) 0;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: var(--space-5);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-soft);
+  transition: color var(--transition-fast);
+}
+
+.backLink:hover {
+  color: var(--color-primary);
+}
+
+.wrapper {
+  display: grid;
+  grid-template-columns: 1fr 0.95fr;
+  gap: var(--space-8);
+  align-items: stretch;
+}
+
+.info {
+  padding: var(--space-8);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(180deg, #eef7ec 0%, #ffffff 100%);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.badge {
+  width: fit-content;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+}
+
+.title {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--color-primary-dark);
+  max-width: 11ch;
+}
+
+.text {
+  max-width: 55ch;
+  color: var(--color-text-soft);
+  font-size: var(--font-size-md);
+}
+
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.features li {
+  position: relative;
+  padding-left: 1.2rem;
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.features li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55rem;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+}
+
+.card {
+  padding: var(--space-8);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.cardHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.cardHeader h2 {
+  font-size: 1.8rem;
+  line-height: 1.1;
+  color: var(--color-primary-dark);
+}
+
+.cardHeader p {
+  color: var(--color-text-soft);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.field label {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.field input {
+  min-height: 54px;
+  padding: 0 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: white;
+  color: var(--color-text);
+  outline: none;
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.field input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(46, 139, 60, 0.14);
+}
+
+.submitButton {
+  min-height: 54px;
+  margin-top: var(--space-2);
+  border: none;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-primary);
+  color: white;
+  font-weight: 700;
+  transition: var(--transition-fast);
+}
+
+.submitButton:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.footerText {
+  color: var(--color-text-soft);
+}
+
+.footerText a {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.successBox {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--color-success) 28%, white);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-success) 10%, white);
+  color: var(--color-success);
+  font-size: var(--font-size-sm);
+}
+
+.errorBox {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 28%, white);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-danger) 10%, white);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.fieldError {
+  display: inline-block;
+  margin-top: var(--space-2);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.inputError {
+  border-color: var(--color-danger) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 12%, transparent);
+}
+
+@media (max-width: 900px) {
+  .wrapper {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .loginPage {
+    padding: var(--space-8) 0;
+  }
+
+  .info,
+  .card {
+    padding: var(--space-5);
+  }
+
+  .text {
+    font-size: var(--font-size-base);
+  }
+}

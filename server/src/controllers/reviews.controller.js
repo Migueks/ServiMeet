@@ -1,21 +1,5 @@
-const { z } = require("zod");
 const prisma = require("../config/prisma");
-
-// Esquema para crear una reseña
-// Valida que se envíe un id de solicitud válido, una puntuación entre 1 y 5 y un comentario con una longitud adecuada.
-const createReviewSchema = z.object({
-  requestId: z.coerce.number().int().positive("El requestId debe ser válido"), // Uso coerce para convertir a número valores que suelen llegar como texto desde el formulario.
-  rating: z.coerce
-    .number()
-    .int("La puntuación debe ser un número entero")
-    .min(1, "La puntuación mínima es 1")
-    .max(5, "La puntuación máxima es 5"),
-  comment: z
-    .string()
-    .trim()
-    .min(3, "El comentario debe tener al menos 3 caracteres")
-    .max(500, "El comentario no puede superar los 500 caracteres"),
-});
+const { createReviewSchema } = require("../schemas/reviews.schema");
 
 // Controlador para crear una nueva reseña.
 // Valida los datos recibidos, comprueba que la solicitud exista y pertenezca al cliente autenticado,
@@ -128,10 +112,11 @@ async function createReview(req, res) {
       review,
     });
   } catch (error) {
-    // Si ocurre cualquier otro error, devuelvo un 500 junto con un mensaje y el detalle del error.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al crear la reseña:", error);
+
     return res.status(500).json({
       message: "Error al crear la reseña",
-      error: error.message,
     });
   }
 }
@@ -160,7 +145,10 @@ async function getReviewsByService(req, res) {
 
     // Busco todas las reseñas asociadas al servicio y las ordeno de más reciente a más antigua.
     const reviews = await prisma.review.findMany({
-      where: { serviceId },
+      where: {
+        serviceId,
+        isVisible: true,
+      },
       orderBy: { createdAt: "desc" },
       include: {
         client: {
@@ -177,10 +165,11 @@ async function getReviewsByService(req, res) {
     // Si todo va bien, respondo con código 200 y las reseñas encontradas.
     return res.status(200).json({ reviews });
   } catch (error) {
-    // Si ocurre cualquier otro error, devuelvo un 500 junto con un mensaje y el detalle del error.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener las reseñas del servicio:", error);
+
     return res.status(500).json({
       message: "Error al obtener las reseñas del servicio",
-      error: error.message,
     });
   }
 }
@@ -196,10 +185,10 @@ async function getMyReviews(req, res) {
 
     // Si el usuario es cliente, solo muestro las reseñas creadas por él.
     if (req.user.role === "CLIENT") {
-      whereClause = { clientId: req.user.id };
+      whereClause = { clientId: req.user.id, isVisible: true };
     } else if (req.user.role === "PRO") {
       // Si el usuario es profesional, solo muestro las reseñas recibidas por él.
-      whereClause = { proId: req.user.id };
+      whereClause = { proId: req.user.id, isVisible: true };
     } else if (req.user.role === "ADMIN") {
       // Si el usuario es administrador, no aplico filtro y devuelvo todas las reseñas.
       whereClause = {};
@@ -251,10 +240,100 @@ async function getMyReviews(req, res) {
     // Si todo va bien, respondo con código 200 y las reseñas encontradas.
     return res.status(200).json({ reviews });
   } catch (error) {
-    // Si ocurre cualquier otro error, devuelvo un 500 junto con un mensaje y el detalle del error.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener las reseñas:", error);
+
     return res.status(500).json({
       message: "Error al obtener las reseñas",
-      error: error.message,
+    });
+  }
+}
+
+// Controlador para obtener las reseñas que se mostrarán en la home.
+// Devuelvo reseñas reales de servicios activos, con comentario, priorizando mejor valoración y mayor actualidad.
+// Intento no repetir servicio para que la home se vea más variada.
+async function getHomeReviews(req, res) {
+  try {
+    // Busco reseñas con comentario asociadas a servicios activos.
+    // Traigo más de las necesarias para poder filtrar sin repetir servicio.
+    const reviews = await prisma.review.findMany({
+      where: {
+        isVisible: true,
+        comment: {
+          not: "",
+        },
+        service: {
+          isActive: true,
+        },
+      },
+      orderBy: [{ rating: "desc" }, { createdAt: "desc" }],
+      take: 30,
+      include: {
+        client: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        service: {
+          select: {
+            id: true,
+            title: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            city: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const selected = [];
+    const seenServices = new Set();
+
+    // Primero intento quedarme con una sola reseña por servicio.
+    for (const review of reviews) {
+      if (!review.service?.id || seenServices.has(review.service.id)) {
+        continue;
+      }
+
+      selected.push(review);
+      seenServices.add(review.service.id);
+
+      if (selected.length === 6) {
+        break;
+      }
+    }
+
+    // Si no llego a 6, completo con el resto aunque repitan servicio.
+    if (selected.length < 6) {
+      for (const review of reviews) {
+        if (selected.some((item) => item.id === review.id)) {
+          continue;
+        }
+
+        selected.push(review);
+
+        if (selected.length === 6) {
+          break;
+        }
+      }
+    }
+
+    return res.status(200).json({ reviews: selected });
+  } catch (error) {
+    console.error("Error al obtener las reseñas de la home:", error);
+
+    return res.status(500).json({
+      message: "Error al obtener las reseñas de la home",
     });
   }
 }
@@ -264,4 +343,5 @@ module.exports = {
   createReview,
   getReviewsByService,
   getMyReviews,
+  getHomeReviews,
 };

@@ -1,0 +1,159 @@
+.footer {
+  padding: var(--space-6) 0 var(--space-6);
+  background-color: var(--color-bg);
+  border-top: 1px solid var(--color-border);
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-10);
+}
+
+.left {
+  flex: 1;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.logo img {
+  display: block;
+  height: 48px;
+  width: auto;
+  object-fit: contain;
+}
+
+.address {
+  font-style: normal;
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text-soft);
+  max-width: 300px;
+}
+
+.right {
+  display: flex;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+}
+
+.linksColumn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.linksColumn h3 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text);
+}
+
+.linksColumn a {
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  color: var(--color-text-soft);
+  transition:
+    color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.linksColumn a:hover {
+  color: var(--color-primary);
+  transform: translateX(4px);
+}
+
+.divider {
+  width: 100%;
+  height: 1px;
+  margin: 0;
+  border: none;
+  background-color: var(--color-border);
+  opacity: 0.6;
+}
+
+.bottom {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.copy {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  opacity: 0.8;
+}
+
+@media (max-width: 900px) {
+  .top {
+    gap: var(--space-8);
+  }
+
+  .right {
+    gap: var(--space-8);
+    flex: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .footer {
+    padding: var(--space-10) 0 var(--space-6);
+  }
+
+  .inner {
+    gap: var(--space-8);
+    text-align: center;
+  }
+
+  .top {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .left {
+    align-items: center;
+    min-width: 100%;
+  }
+
+  .address {
+    max-width: 100%;
+  }
+
+  .right {
+    justify-content: center;
+    width: 100%;
+    gap: var(--space-6);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    text-align: left;
+  }
+
+  .linksColumn {
+    min-width: unset;
+    align-items: center;
+    text-align: center;
+  }
+
+  .bottom {
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .copy {
+    order: 2;
+  }
+}

@@ -1,0 +1,54 @@
+.section {
+  padding-bottom: var(--space-4);
+}
+
+.sectionAlt {
+  background-color: var(--color-surface-soft);
+  padding-top: var(--space-12);
+  padding-bottom: var(--space-12);
+}
+
+.sectionHeading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+}
+
+.sectionEyebrow {
+  width: fit-content;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+}
+
+.sectionHeading h2 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.08;
+  color: var(--color-primary-dark);
+}
+
+.sectionHeading p {
+  max-width: 60ch;
+  color: var(--color-text-soft);
+}
+
+.servicesGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 1100px) {
+  .servicesGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.emptyText {
+  margin-top: 1.5rem;
+  color: var(--color-text-soft, #5f6470);
+}

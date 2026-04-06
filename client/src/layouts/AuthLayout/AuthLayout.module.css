@@ -1,0 +1,32 @@
+.authLayout {
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+.topBar {
+  width: min(100% - 2rem, var(--container-width));
+  margin: 0 auto;
+  padding: 1.25rem 0 0;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+}
+
+.logo img {
+  display: block;
+  height: 46px;
+  width: auto;
+  object-fit: contain;
+}
+
+@media (max-width: 640px) {
+  .topBar {
+    padding-top: 1rem;
+  }
+
+  .logo img {
+    height: 40px;
+  }
+}

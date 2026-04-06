@@ -1,0 +1,44 @@
+.hero {
+  padding: var(--space-12) 0 var(--space-8);
+}
+
+.heroContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.badge {
+  width: fit-content;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.title {
+  max-width: 12ch;
+  font-size: clamp(2.2rem, 5vw, 4rem);
+  line-height: 1.02;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--color-primary-dark);
+}
+
+.subtitle {
+  max-width: 60ch;
+  color: var(--color-text-soft);
+  font-size: var(--font-size-md);
+}
+
+@media (max-width: 640px) {
+  .hero {
+    padding: var(--space-8) 0 var(--space-6);
+  }
+
+  .subtitle {
+    font-size: var(--font-size-base);
+  }
+}

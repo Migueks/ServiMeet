@@ -1,42 +1,8 @@
-const { z } = require("zod");
 const prisma = require("../config/prisma");
-
-// Esquema para actualizar el perfil del usuario autenticado.
-// Solo permite modificar campos del perfil.
-// No permito cambiar ni el role ni la password desde esta ruta.
-const updateMyProfileSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(2, "El nombre debe tener al menos 2 caracteres")
-    .optional(),
-
-  email: z.string().trim().email("El email no es válido").optional(),
-
-  city: z.preprocess(
-    // Si desde el formulario llega una cadena vacía (""),
-    // la transformo a null para poder guardar "sin ciudad".
-    (value) => (value === "" ? null : value),
-    z
-      .string()
-      .trim()
-      .min(2, "La ciudad debe tener al menos 2 caracteres")
-      .nullable()
-      .optional(),
-  ),
-
-  avatarUrl: z.preprocess(
-    // Si desde el formulario llega una cadena vacía (""),
-    // la transformo a null para poder guardar "sin avatar".
-    (value) => (value === "" ? null : value),
-    z
-      .string()
-      .trim()
-      .url("El avatar debe ser una URL válida")
-      .nullable()
-      .optional(),
-  ),
-});
+const { updateMyProfileSchema } = require("../schemas/users.schema");
+const uploadToCloudinary = require("../utils/uploadToCloudinary");
+const deleteFromCloudinary = require("../utils/deleteFromCloudinary");
+const validateRealImageType = require("../utils/validateRealImageType");
 
 // Función auxiliar para calcular la media de valoración y el total de reseñas.
 // La uso para no repetir esta lógica en varios controladores.
@@ -99,26 +65,35 @@ async function getMyProfile(req, res) {
     // Si todo va bien, respondo con código 200 y los datos del usuario.
     return res.status(200).json({ user });
   } catch (error) {
-    // Si ocurre cualquier error durante la consulta, devuelvo un 500.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener el perfil del usuario:", error);
+
     return res.status(500).json({
       message: "Error al obtener el perfil del usuario",
-      error: error.message,
     });
   }
 }
 
 // Controlador para actualizar el perfil del usuario autenticado.
-// Permite editar nombre, email, ciudad y avatarUrl.
+// Permite editar campos del perfil y, opcionalmente, subir un nuevo avatar.
 async function updateMyProfile(req, res) {
+  let uploadedAvatar = null;
+
   try {
-    // Compruebo que al menos se haya enviado un campo para actualizar.
-    if (Object.keys(req.body).length === 0) {
+    // Compruebo si el usuario ha enviado datos en el body.
+    const hasBodyData = Object.keys(req.body).length > 0;
+
+    // Compruebo si el usuario ha enviado un archivo de avatar.
+    const hasAvatarFile = Boolean(req.file);
+
+    // Si no llega ni texto ni archivo, devuelvo error 400.
+    if (!hasBodyData && !hasAvatarFile) {
       return res.status(400).json({
         message: "Debes enviar al menos un campo para actualizar",
       });
     }
 
-    // Valido los datos recibidos con Zod.
+    // Valido los datos recibidos en el body con Zod.
     const parsedData = updateMyProfileSchema.safeParse(req.body);
 
     // Si la validación falla, devuelvo 400 con el detalle de errores.
@@ -132,27 +107,64 @@ async function updateMyProfile(req, res) {
       });
     }
 
-    // Compruebo que, después de validar, siga habiendo al menos
-    // un campo válido para actualizar.
-    if (Object.keys(parsedData.data).length === 0) {
+    // Compruebo que el usuario autenticado siga existiendo en base de datos.
+    // También recupero avatarId para poder borrar la imagen anterior si sube una nueva.
+    const existingUser = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        avatarUrl: true,
+        avatarId: true,
+      },
+    });
+
+    // Si no existe, devuelvo 404.
+    if (!existingUser) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    // Preparo un objeto con los datos validados que sí se pueden actualizar.
+    const dataToUpdate = {
+      ...parsedData.data,
+    };
+
+    // Si el usuario ha subido una nueva imagen de avatar...
+    if (req.file) {
+      // ...primero compruebo que el archivo sea realmente una imagen válida,
+      // no solo por su extensión o su mimetype, sino por su contenido real.
+      const isRealImage = await validateRealImageType(req.file);
+
+      // Si el archivo no es una imagen válida, detengo el proceso y devuelvo un error al cliente.
+      if (!isRealImage) {
+        return res.status(400).json({
+          message: "El archivo subido no es una imagen válida",
+        });
+      }
+
+      // Si la imagen es válida, la subo a Cloudinary dentro de la carpeta de avatares de la aplicación.
+      uploadedAvatar = await uploadToCloudinary(
+        req.file.buffer,
+        "servimeet/avatars",
+      );
+
+      // Guardo en los datos a actualizar tanto la URL pública de la imagen
+      // como el public_id de Cloudinary, que servirá después para borrarla
+      // o reemplazarla si hace falta.
+      dataToUpdate.avatarUrl = uploadedAvatar.secure_url;
+      dataToUpdate.avatarId = uploadedAvatar.public_id;
+    }
+
+    // Compruebo que, al final, exista al menos un campo válido para actualizar.
+    if (Object.keys(dataToUpdate).length === 0) {
       return res.status(400).json({
         message: "Debes enviar al menos un campo válido para actualizar",
       });
     }
 
-    // Compruebo que el usuario autenticado siga existiendo.
-    const existingUser = await prisma.user.findUnique({
-      where: { id: req.user.id },
-    });
-
-    if (!existingUser) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
-    }
-
-    // Actualizo únicamente campos seguros del perfil.
+    // Actualizo el perfil del usuario con los datos preparados.
     const updatedUser = await prisma.user.update({
       where: { id: req.user.id },
-      data: parsedData.data,
+      data: dataToUpdate,
       select: {
         id: true,
         name: true,
@@ -165,12 +177,39 @@ async function updateMyProfile(req, res) {
       },
     });
 
+    // Si se ha subido un avatar nuevo y el usuario ya tenía uno anterior,
+    // intento borrar la imagen antigua de Cloudinary.
+    // No rompo la respuesta si el borrado falla: el perfil ya está actualizado.
+    if (uploadedAvatar && existingUser.avatarId) {
+      try {
+        await deleteFromCloudinary(existingUser.avatarId);
+      } catch (cloudinaryDeleteError) {
+        console.error(
+          "No se pudo borrar el avatar anterior de Cloudinary:",
+          cloudinaryDeleteError.message,
+        );
+      }
+    }
+
     // Si todo sale bien, respondo con un 200 y el usuario actualizado.
     return res.status(200).json({
       message: "Perfil actualizado correctamente",
       user: updatedUser,
     });
   } catch (error) {
+    // Si la subida a Cloudinary se hizo pero luego falló algo al actualizar en BD,
+    // intento borrar el nuevo avatar para no dejar archivos huérfanos.
+    if (uploadedAvatar?.public_id) {
+      try {
+        await deleteFromCloudinary(uploadedAvatar.public_id);
+      } catch (cleanupError) {
+        console.error(
+          "No se pudo limpiar el nuevo avatar tras un error:",
+          cleanupError.message,
+        );
+      }
+    }
+
     // Si el email ya existe en otro usuario, Prisma lanza error de unique constraint.
     if (error.code === "P2002") {
       return res.status(409).json({
@@ -178,9 +217,85 @@ async function updateMyProfile(req, res) {
       });
     }
 
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al actualizar el perfil:", error);
+
     return res.status(500).json({
       message: "Error al actualizar el perfil",
-      error: error.message,
+    });
+  }
+}
+
+// Controlador para eliminar el avatar del usuario autenticado.
+// Borra la referencia en base de datos y, si existe avatarId, intenta
+// eliminar también la imagen de Cloudinary.
+async function deleteMyAvatar(req, res) {
+  try {
+    // Busco al usuario autenticado y recupero sus datos de avatar.
+    const existingUser = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        avatarUrl: true,
+        avatarId: true,
+      },
+    });
+
+    // Si no existe, devuelvo 404.
+    if (!existingUser) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    // Si no tiene avatar actualmente, devuelvo 400.
+    if (!existingUser.avatarUrl && !existingUser.avatarId) {
+      return res.status(400).json({
+        message: "No tienes ningún avatar para eliminar",
+      });
+    }
+
+    // Primero limpio la base de datos para que el perfil quede correcto
+    // aunque el borrado en Cloudinary falle después.
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        avatarUrl: null,
+        avatarId: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        city: true,
+        avatarUrl: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    // Si existía avatarId, intento borrar también la imagen en Cloudinary.
+    // Si falla, no rompo la respuesta porque el perfil ya está limpio en BD.
+    if (existingUser.avatarId) {
+      try {
+        await deleteFromCloudinary(existingUser.avatarId);
+      } catch (cloudinaryDeleteError) {
+        console.error(
+          "No se pudo borrar el avatar de Cloudinary:",
+          cloudinaryDeleteError.message,
+        );
+      }
+    }
+
+    // Respondo con el usuario actualizado.
+    return res.status(200).json({
+      message: "Avatar eliminado correctamente",
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("Error al eliminar el avatar:", error);
+
+    return res.status(500).json({
+      message: "Error al eliminar el avatar",
     });
   }
 }
@@ -214,6 +329,9 @@ async function getMyServices(req, res) {
         // Incluyo solo las puntuaciones de las reseñas para calcular después
         // la media y el número total de valoraciones.
         reviews: {
+          where: {
+            isVisible: true,
+          },
           select: {
             rating: true,
           },
@@ -245,10 +363,11 @@ async function getMyServices(req, res) {
     // Si todo va bien, respondo con código 200 y los servicios formateados.
     return res.status(200).json({ services: formattedServices });
   } catch (error) {
-    // Si ocurre cualquier error durante la consulta, devuelvo un 500.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener los servicios del usuario:", error);
+
     return res.status(500).json({
       message: "Error al obtener los servicios del usuario",
-      error: error.message,
     });
   }
 }
@@ -359,9 +478,16 @@ async function getMyDashboard(req, res) {
           where: { proId: user.id, status: "CANCELLED" },
         }),
         prisma.review.aggregate({
-          where: { proId: user.id },
-          _avg: { rating: true },
-          _count: { id: true },
+          where: {
+            proId: user.id,
+            isVisible: true,
+          },
+          _avg: {
+            rating: true,
+          },
+          _count: {
+            id: true,
+          },
         }),
       ]);
 
@@ -432,10 +558,11 @@ async function getMyDashboard(req, res) {
     // Si el rol no coincide con ninguno de los esperados, devuelvo un error.
     return res.status(400).json({ message: "Rol de usuario no válido" });
   } catch (error) {
-    // Si ocurre cualquier error durante el proceso, devuelvo un 500.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener el dashboard del usuario:", error);
+
     return res.status(500).json({
       message: "Error al obtener el dashboard del usuario",
-      error: error.message,
     });
   }
 }
@@ -444,6 +571,7 @@ async function getMyDashboard(req, res) {
 module.exports = {
   getMyProfile,
   updateMyProfile,
+  deleteMyAvatar,
   getMyServices,
   getMyDashboard,
 };

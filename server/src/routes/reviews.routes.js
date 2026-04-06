@@ -6,6 +6,7 @@ const {
   createReview,
   getReviewsByService,
   getMyReviews,
+  getHomeReviews,
 } = require("../controllers/reviews.controller");
 
 // Importo los middlewares de autenticación y autorización.
@@ -14,6 +15,9 @@ const hasRole = require("../middlewares/hasRole");
 
 // Ruta para crear una nueva reseña. Solo pueden acceder usuarios autenticados con rol CLIENT.
 router.post("/", isAuth, hasRole("CLIENT"), createReview);
+
+// Ruta para obtener las reseñas destacadas que se muestran en la home.
+router.get("/home", getHomeReviews);
 
 // Ruta para obtener las reseñas de un servicio concreto por su serviceId.
 router.get("/service/:serviceId", getReviewsByService);

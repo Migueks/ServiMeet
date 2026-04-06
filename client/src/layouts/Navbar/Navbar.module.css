@@ -1,0 +1,240 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background-color: rgba(247, 248, 245, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.inner {
+  min-height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.logo img {
+  display: block;
+  height: 48px;
+  width: auto;
+  object-fit: contain;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  color: var(--color-text-soft);
+  font-weight: 500;
+}
+
+.nav a {
+  transition: color var(--transition-fast);
+}
+
+.nav a:hover {
+  color: var(--color-primary);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.loginButton,
+.registerButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  padding: 0.8rem 1.1rem;
+  font-weight: 700;
+  transition: var(--transition-fast);
+}
+
+.loginButton {
+  color: var(--color-primary-dark);
+}
+
+.loginButton:hover {
+  background-color: var(--color-primary-soft);
+}
+
+.registerButton {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.registerButton:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.mobileLogoutButton {
+  background-color: var(--color-primary);
+  color: white;
+  border-radius: var(--radius-pill);
+  padding: 0.6rem 1.1rem;
+  font-weight: 700;
+  border: none;
+}
+.mobileLogoutButton:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.logoutButton {
+  background-color: var(--color-primary);
+  color: white;
+  border-radius: var(--radius-pill);
+  padding: 0.6rem 1.1rem;
+  font-weight: 700;
+  border: none;
+}
+
+.logoutButton:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.menuButton {
+  display: none;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background-color: var(--color-surface);
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.bar {
+  width: 18px;
+  height: 2px;
+  background-color: var(--color-primary-dark);
+  border-radius: 999px;
+  transition:
+    transform var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.barTopOpen {
+  transform: translateY(6px) rotate(45deg);
+}
+
+.barMiddleOpen {
+  opacity: 0;
+}
+
+.barBottomOpen {
+  transform: translateY(-6px) rotate(-45deg);
+}
+
+.mobileMenu {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+  background-color: var(--color-surface);
+  border-top: 1px solid transparent;
+}
+
+.mobileMenuOpen {
+  max-height: 420px;
+  border-top: 1px solid var(--color-border);
+}
+
+.mobileMenuInner {
+  padding-top: var(--space-5);
+  padding-bottom: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.mobileNav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.mobileNav a {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.mobileActions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.mobileLoginButton,
+.mobileRegisterButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  transition: var(--transition-fast);
+}
+
+.mobileLoginButton {
+  border: 1px solid var(--color-border);
+  color: var(--color-primary-dark);
+  background-color: var(--color-surface);
+}
+
+.mobileLoginButton:hover {
+  background-color: var(--color-primary-soft);
+}
+
+.mobileRegisterButton {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.mobileRegisterButton:hover {
+  background-color: var(--color-primary-hover);
+}
+
+@media (max-width: 900px) {
+  .nav,
+  .actions {
+    display: none;
+  }
+
+  .menuButton {
+    display: inline-flex;
+  }
+}
+
+@media (min-width: 901px) {
+  .mobileMenu {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .inner {
+    min-height: 72px;
+  }
+
+  .logo img {
+    height: 40px;
+  }
+
+  .menuButton {
+    width: 42px;
+    height: 42px;
+  }
+}

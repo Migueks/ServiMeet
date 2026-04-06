@@ -1,0 +1,63 @@
+:root {
+  /* Colores base */
+  --color-bg: #f7f8f5;
+  --color-surface: #ffffff;
+  --color-surface-soft: #eef5ea;
+
+  --color-text: #163524;
+  --color-text-soft: #5f6f64;
+  --color-border: #dbe7da;
+
+  /* Marca */
+  --color-primary: #2e8b3c;
+  --color-primary-hover: #256f31;
+  --color-primary-dark: #1d4f2a;
+  --color-primary-soft: #dff0df;
+
+  /* Estados */
+  --color-success: #1f8f4d;
+  --color-danger: #c93c3c;
+  --color-warning: #d89a1d;
+
+  /* Tipografía */
+  --font-family-base:
+    Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-md: 1.125rem;
+  --font-size-lg: 1.5rem;
+  --font-size-xl: 2.25rem;
+  --font-size-2xl: 3.5rem;
+
+  /* Espaciados */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+
+  /* Bordes y sombras */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 2rem;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 8px 20px rgba(29, 79, 42, 0.06);
+  --shadow-md: 0 16px 40px rgba(29, 79, 42, 0.1);
+
+  /* Layout */
+  --container-width: 1200px;
+  --header-height: 80px;
+
+  /* Transiciones */
+  --transition-fast: 0.2s ease-in-out;
+}

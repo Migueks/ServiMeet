@@ -13,15 +13,16 @@ const {
   deleteService,
 } = require("../controllers/services.controller");
 
-// Importo los middlewares de autenticación y autorización.
+// Importo los middlewares de seguridad.
 const isAuth = require("../middlewares/isAuth");
 const hasRole = require("../middlewares/hasRole");
+const optionalAuth = require("../middlewares/optionalAuth");
 
 // Ruta para obtener todos los servicios activos.
 router.get("/", getAllServices);
 
 // Ruta para obtener un servicio concreto por su id.
-router.get("/:id", getServiceById);
+router.get("/:id", optionalAuth, getServiceById);
 
 // Ruta para crear un nuevo servicio. Solo pueden acceder usuarios autenticados con rol PRO o ADMIN, permite subir imagen opcional.
 router.post(

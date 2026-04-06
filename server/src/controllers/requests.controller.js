@@ -1,24 +1,8 @@
-const { z } = require("zod");
 const prisma = require("../config/prisma");
-
-// Esquema para crear una solicitud.
-// Valida que se envíe un id de servicio válido y un mensaje con una longitud adecuada.
-const createRequestSchema = z.object({
-  serviceId: z.coerce.number().int().positive("El serviceId debe ser válido"), // Uso coerce para convertir a número valores que suelen llegar como texto desde el formulario.
-  message: z
-    .string()
-    .trim()
-    .min(3, "El mensaje debe tener al menos 3 caracteres")
-    .max(500, "El mensaje no puede superar los 500 caracteres"),
-});
-
-// Esquema para actualizar el estado de una solicitud.
-// Solo permite los estados definidos en el enum.
-const updateRequestStatusSchema = z.object({
-  status: z.enum(["PENDING", "ACCEPTED", "REJECTED", "DONE"], {
-    errorMap: () => ({ message: "Estado no válido" }),
-  }),
-});
+const {
+  createRequestSchema,
+  updateRequestStatusSchema,
+} = require("../schemas/requests.schema");
 
 // Controlador para crear una nueva solicitud.
 // Valida los datos recibidos, comprueba que el servicio exista y esté disponible, evita solicitudes duplicadas o sobre servicios propios, y crea la solicitud.
@@ -136,10 +120,11 @@ async function createRequest(req, res) {
       request,
     });
   } catch (error) {
-    // Si ocurre cualquier otro error, devuelvo un 500 junto con un mensaje y el detalle del error.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al crear la solicitud:", error);
+
     return res.status(500).json({
       message: "Error al crear la solicitud",
-      error: error.message,
     });
   }
 }
@@ -196,10 +181,11 @@ async function getMyClientRequests(req, res) {
     // Si todo va bien, respondo con código 200 y las solicitudes encontradas.
     return res.status(200).json({ requests });
   } catch (error) {
-    // Si ocurre un error durante la consulta, devuelvo un 500 junto con un mensaje y el detalle del error.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener las solicitudes del cliente:", error);
+
     return res.status(500).json({
       message: "Error al obtener las solicitudes del cliente",
-      error: error.message,
     });
   }
 }
@@ -256,10 +242,11 @@ async function getMyProRequests(req, res) {
     // Si todo va bien, respondo con código 200 y las solicitudes encontradas.
     return res.status(200).json({ requests });
   } catch (error) {
-    // Si ocurre un error durante la consulta, devuelvo un 500 junto con un mensaje y el detalle del error.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener las solicitudes del profesional:", error);
+
     return res.status(500).json({
       message: "Error al obtener las solicitudes del profesional",
-      error: error.message,
     });
   }
 }
@@ -290,6 +277,8 @@ async function updateRequestStatus(req, res) {
       });
     }
 
+    const newStatus = parsedData.data.status;
+
     // Busco la solicitud actual para comprobar que exista.
     const existingRequest = await prisma.request.findUnique({
       where: { id },
@@ -300,22 +289,63 @@ async function updateRequestStatus(req, res) {
       return res.status(404).json({ message: "Solicitud no encontrada" });
     }
 
-    // Compruebo si el usuario autenticado es el profesional propietario de la solicitud o un administrador.
+    const isClientOwner = existingRequest.clientId === req.user.id;
     const isOwnerPro = existingRequest.proId === req.user.id;
     const isAdmin = req.user.role === "ADMIN";
 
-    // Si no cumple ninguna de las dos condiciones, no permito la actualización.
-    if (!isOwnerPro && !isAdmin) {
+    // Si el usuario no tiene relación con la solicitud y no es admin, no permito la actualización.
+    if (!isClientOwner && !isOwnerPro && !isAdmin) {
       return res.status(403).json({
         message: "No tienes permisos para actualizar esta solicitud",
       });
+    }
+
+    // Evito cambios redundantes.
+    if (existingRequest.status === newStatus) {
+      return res.status(400).json({
+        message: "La solicitud ya tiene ese estado",
+      });
+    }
+
+    // Reglas para CLIENT:
+    // solo puede cancelar sus propias solicitudes si están pendientes o aceptadas.
+    if (isClientOwner && !isAdmin) {
+      if (newStatus !== "CANCELLED") {
+        return res.status(403).json({
+          message: "Como cliente solo puedes cancelar tu solicitud",
+        });
+      }
+
+      if (!["PENDING", "ACCEPTED"].includes(existingRequest.status)) {
+        return res.status(400).json({
+          message: "Solo puedes cancelar solicitudes pendientes o aceptadas",
+        });
+      }
+    }
+
+    // Reglas para PRO:
+    // - PENDING -> ACCEPTED o REJECTED
+    // - ACCEPTED -> DONE
+    if (isOwnerPro && !isAdmin) {
+      const canAcceptOrReject =
+        existingRequest.status === "PENDING" &&
+        ["ACCEPTED", "REJECTED"].includes(newStatus);
+
+      const canMarkDone =
+        existingRequest.status === "ACCEPTED" && newStatus === "DONE";
+
+      if (!canAcceptOrReject && !canMarkDone) {
+        return res.status(400).json({
+          message: "Cambio de estado no permitido para esta solicitud",
+        });
+      }
     }
 
     // Actualizo el estado de la solicitud con el valor ya validado.
     const updatedRequest = await prisma.request.update({
       where: { id },
       data: {
-        status: parsedData.data.status,
+        status: newStatus,
       },
       include: {
         service: {
@@ -362,10 +392,11 @@ async function updateRequestStatus(req, res) {
       request: updatedRequest,
     });
   } catch (error) {
-    // Si ocurre un error durante la actualización, devuelvo un 500 junto con un mensaje y el detalle del error.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al actualizar el estado de la solicitud:", error);
+
     return res.status(500).json({
       message: "Error al actualizar el estado de la solicitud",
-      error: error.message,
     });
   }
 }

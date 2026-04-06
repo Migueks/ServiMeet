@@ -12,16 +12,19 @@ async function getAllCategories(req, res) {
       select: {
         id: true,
         name: true,
+        imageUrl: true,
+        imageId: true,
       },
     });
 
     // Si todo va bien, respondo con un código 200 y el listado de categorías.
     return res.status(200).json({ categories });
   } catch (error) {
-    // Si ocurre un error durante la consulta, devuelvo un 500 junto con un mensaje y el detalle del error.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener las categorías:", error);
+
     return res.status(500).json({
       message: "Error al obtener las categorías",
-      error: error.message,
     });
   }
 }
@@ -44,6 +47,8 @@ async function getCategoryById(req, res) {
       select: {
         id: true,
         name: true,
+        imageUrl: true,
+        imageId: true,
       },
     });
 
@@ -55,10 +60,11 @@ async function getCategoryById(req, res) {
     // Si todo va bien, respondo con código 200 y la categoría encontrada.
     return res.status(200).json({ category });
   } catch (error) {
-    // Si ocurre un error durante la consulta, devuelvo un 500 junto con un mensaje y el detalle del error.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener la categoría:", error);
+
     return res.status(500).json({
       message: "Error al obtener la categoría",
-      error: error.message,
     });
   }
 }
@@ -81,10 +87,11 @@ async function getAllCities(req, res) {
     // Si todo va bien, respondo con código 200 y el listado de ciudades.
     return res.status(200).json({ cities });
   } catch (error) {
-    // Si ocurre un error durante la consulta, devuelvo un 500 junto con un mensaje y el detalle del error.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener las ciudades:", error);
+
     return res.status(500).json({
       message: "Error al obtener las ciudades",
-      error: error.message,
     });
   }
 }
@@ -118,10 +125,11 @@ async function getCityById(req, res) {
     // Si todo va bien, respondo con código 200 y la ciudad encontrada.
     return res.status(200).json({ city });
   } catch (error) {
-    // Si ocurre un error durante la consulta, devuelvo un 500 junto con un mensaje y el detalle del error.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener la ciudad:", error);
+
     return res.status(500).json({
       message: "Error al obtener la ciudad",
-      error: error.message,
     });
   }
 }

@@ -1,0 +1,11 @@
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+@media (max-width: 768px) {
+  .home {
+    gap: var(--space-12);
+  }
+}

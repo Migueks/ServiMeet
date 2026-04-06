@@ -36,7 +36,7 @@ router.get(
 router.patch(
   "/:id/status",
   isAuth,
-  hasRole("PRO", "ADMIN"),
+  hasRole("CLIENT", "PRO", "ADMIN"),
   updateRequestStatus,
 );
 

@@ -1,48 +1,15 @@
-const { z } = require("zod");
 const prisma = require("../config/prisma");
+const {
+  createServiceSchema,
+  updateServiceSchema,
+} = require("../schemas/services.schema");
 
 // Importo la utilidad que se encarga de subir imágenes a Cloudinary.
 const uploadToCloudinary = require("../utils/uploadToCloudinary");
 // Importo la utilidad que se encarga de borrar imágenes de Cloudinary.
 const deleteFromCloudinary = require("../utils/deleteFromCloudinary");
-
-// Esquema para crear servicio
-// Valida los datos necesarios para dar de alta un nuevo servicio y comprueba que tengan el formato y contenido esperados.
-const createServiceSchema = z.object({
-  title: z.string().trim().min(3, "El título debe tener al menos 3 caracteres"),
-  description: z
-    .string()
-    .trim()
-    .min(10, "La descripción debe tener al menos 10 caracteres"),
-  categoryId: z.coerce
-    .number()
-    .int("La categoría debe ser válida")
-    .positive("La categoría debe ser válida"),
-  cityId: z.coerce
-    .number()
-    .int("La ciudad debe ser válida")
-    .positive("La ciudad debe ser válida"),
-  price: z.coerce.number().positive("El precio debe ser mayor que 0"), // Uso coerce para convertir a número valores que suelen llegar como texto desde el formulario.
-});
-
-// Esquema para actualizar servicio
-// Valida los campos que se quieran modificar en un servicio existente, permitiendo actualizaciones parciales solo con los datos enviados.
-const updateServiceSchema = z.object({
-  title: z.string().trim().min(3).optional(),
-  description: z.string().trim().min(10).optional(),
-  categoryId: z.coerce
-    .number()
-    .int("La categoría debe ser válida")
-    .positive("La categoría debe ser válida")
-    .optional(),
-  cityId: z.coerce
-    .number()
-    .int("La ciudad debe ser válida")
-    .positive("La ciudad debe ser válida")
-    .optional(),
-  price: z.coerce.number().positive().optional(), // Igual que arriba: convierto a número por si el valor llega como string en req.body.
-  isActive: z.coerce.boolean().optional(),
-});
+// Importo la utilidad que se encarga de comprobar si el archivo subido es una imagen válida.
+const validateRealImageType = require("../utils/validateRealImageType");
 
 // Función auxiliar para calcular la media de puntuación y el total de reseñas.
 // La creo para no repetir lógica en varios controladores.
@@ -109,6 +76,9 @@ async function getAllServices(req, res) {
           },
         },
         reviews: {
+          where: {
+            isVisible: true,
+          },
           select: {
             rating: true,
           },
@@ -139,10 +109,11 @@ async function getAllServices(req, res) {
     // Si todo va bien, respondo con código 200 y los servicios obtenidos.
     return res.status(200).json({ services: formattedServices });
   } catch (error) {
-    // Si ocurre un error durante la consulta, devuelvo un 500 junto un mensaje y el detalle del error.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener los servicios:", error);
+
     return res.status(500).json({
       message: "Error al obtener los servicios",
-      error: error.message,
     });
   }
 }
@@ -186,6 +157,9 @@ async function getServiceById(req, res) {
           },
         },
         reviews: {
+          where: {
+            isVisible: true,
+          },
           select: {
             id: true,
             rating: true,
@@ -198,13 +172,26 @@ async function getServiceById(req, res) {
               },
             },
           },
-          orderBy: { createdAt: "desc" },
+          orderBy: {
+            createdAt: "desc",
+          },
         },
       },
     });
 
     // Si no existe ningún servicio con ese id, devuelvo un 404.
     if (!service) {
+      return res.status(404).json({ message: "Servicio no encontrado" });
+    }
+
+    // Compruebo si el usuario autenticado es el propietario del servicio.
+    const isOwner = req.user?.id === service.proId;
+    // Compruebo si el usuario autenticado tiene rol de administrador.
+    const isAdmin = req.user?.role === "ADMIN";
+
+    // Si el servicio está inactivo, solo pueden verlo: su propietario o un administrador
+    // Cualquier otro usuario recibirá un 404 como si el servicio no existiera.
+    if (!service.isActive && !isOwner && !isAdmin) {
       return res.status(404).json({ message: "Servicio no encontrado" });
     }
 
@@ -222,10 +209,11 @@ async function getServiceById(req, res) {
       },
     });
   } catch (error) {
-    // Si ocurre un error durante la consulta, devuelvo un 500 junto con un mensaje y el detalle del error.
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al obtener el servicio:", error);
+
     return res.status(500).json({
       message: "Error al obtener el servicio",
-      error: error.message,
     });
   }
 }
@@ -237,7 +225,21 @@ async function createService(req, res) {
   try {
     // Valido los datos recibidos en el body usando el esquema de Zod.
     // "price", "categoryId" y "cityId" se convierten automáticamente a número gracias a z.coerce.number().
-    const data = createServiceSchema.parse(req.body);
+    const parsedData = createServiceSchema.safeParse(req.body);
+
+    // Si la validación falla, devuelvo un 400 con el detalle de los campos que no cumplen el esquema.
+    if (!parsedData.success) {
+      return res.status(400).json({
+        message: "Datos inválidos",
+        errors: parsedData.error.issues.map((e) => ({
+          field: e.path.join("."),
+          message: e.message,
+        })),
+      });
+    }
+
+    // Extraigo los datos ya validados para trabajar con ellos de forma segura.
+    const data = parsedData.data;
 
     // Compruebo que la categoría exista.
     const categoryExists = await prisma.category.findUnique({
@@ -261,10 +263,23 @@ async function createService(req, res) {
     let imageUrl = null;
     let imageId = null;
 
-    // Si llega un archivo en req.file, lo subo a Cloudinary y guardo la URL segura y el identificador público de la imagen.
+    // Si el cliente ha enviado un archivo en req.file...
     if (req.file) {
+      // ...compruebo primero que el contenido del archivo corresponda realmente a una imagen válida.
+      const isRealImage = await validateRealImageType(req.file);
+
+      // Si el archivo no es una imagen válida, detengo el proceso y devuelvo un error al cliente.
+      if (!isRealImage) {
+        return res.status(400).json({
+          message: "El archivo subido no es una imagen válida",
+        });
+      }
+
+      // Si la imagen es válida, la subo a Cloudinary.
       const uploadedImage = await uploadToCloudinary(req.file.buffer);
 
+      // Guardo la URL pública segura de la imagen y su identificador
+      // para poder almacenarlos después en la base de datos.
       imageUrl = uploadedImage.secure_url;
       imageId = uploadedImage.public_id;
     }
@@ -314,21 +329,11 @@ async function createService(req, res) {
       },
     });
   } catch (error) {
-    // Si la validación de Zod falla, devuelvo un 400 con el detalle de los campos que no cumplen el esquema.
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({
-        message: "Datos inválidos",
-        errors: error.issues.map((e) => ({
-          field: e.path.join("."),
-          message: e.message,
-        })),
-      });
-    }
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al crear el servicio:", error);
 
-    // Si ocurre cualquier otro error, devuelvo un 500 junto con un mensaje y el detalle del error.
     return res.status(500).json({
       message: "Error al crear el servicio",
-      error: error.message,
     });
   }
 }
@@ -373,7 +378,21 @@ async function updateService(req, res) {
     }
 
     // Valido los datos recibidos en el body usando el esquema de actualización.
-    const data = updateServiceSchema.parse(req.body);
+    const parsedData = updateServiceSchema.safeParse(req.body);
+
+    // Si la validación falla, devuelvo un 400 con el detalle de los campos que no cumplen el esquema.
+    if (!parsedData.success) {
+      return res.status(400).json({
+        message: "Datos inválidos",
+        errors: parsedData.error.issues.map((e) => ({
+          field: e.path.join("."),
+          message: e.message,
+        })),
+      });
+    }
+
+    // Extraigo los datos validados.
+    const data = parsedData.data;
 
     // Compruebo que, después de validar, siga habiendo al menos un campo válido para actualizar.
     if (Object.keys(data).length === 0 && !req.file) {
@@ -410,10 +429,23 @@ async function updateService(req, res) {
     // Guardo el id de la imagen antigua por si luego hay que borrarla tras actualizar la BD.
     const oldImageId = existingService.imageId;
 
-    // Si se ha enviado una nueva imagen, la subo a Cloudinary para guardar después su URL e identificador en la base de datos.
+    // Si se ha enviado una nueva imagen...
     if (req.file) {
+      // ...compruebo primero que el archivo sea realmente una imagen válida antes de subirlo a Cloudinary.
+      const isRealImage = await validateRealImageType(req.file);
+
+      // Si el archivo no es una imagen válida, detengo el proceso y devuelvo un error al cliente.
+      if (!isRealImage) {
+        return res.status(400).json({
+          message: "El archivo subido no es una imagen válida",
+        });
+      }
+
+      // Si la imagen es válida, la subo a Cloudinary.
       uploadedImage = await uploadToCloudinary(req.file.buffer);
 
+      // Guardo en los datos normalizados la URL pública segura de la imagen
+      // y su identificador para poder almacenarlos después en la base de datos.
       normalizedData.imageUrl = uploadedImage.secure_url;
       normalizedData.imageId = uploadedImage.public_id;
     }
@@ -492,83 +524,84 @@ async function updateService(req, res) {
       }
     }
 
-    // Si la validación de Zod falla, devuelvo un 400 con el detalle de los campos que no cumplen el esquema.
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({
-        message: "Datos inválidos",
-        errors: error.issues.map((e) => ({
-          field: e.path.join("."),
-          message: e.message,
-        })),
-      });
-    }
+    // Muestro el error real solo en servidor para depuración.
+    console.error("Error al actualizar el servicio:", error);
 
-    // Si ocurre cualquier otro error, devuelvo un 500 junto con un mensaje y el detalle del error.
     return res.status(500).json({
       message: "Error al actualizar el servicio",
-      error: error.message,
     });
   }
 }
 
-// Controlador para eliminar un servicio existente.
-// Comprueba que el id sea válido, verifica que el servicio exista y que el usuario tenga permisos para eliminarlo antes de borrarlo de la base de datos.
+// Controlador para retirar un servicio del marketplace sin borrarlo físicamente.
+// En lugar de eliminar el registro, lo marco como inactivo para conservar solicitudes, reseñas e información histórica.
 async function deleteService(req, res) {
   try {
-    // Convierto el id recibido por params a número para poder consultarlo en la consulta.
+    // Convierto el id recibido por params a número para poder usarlo en la consulta.
     const id = Number(req.params.id);
 
-    // Compruebo que el id sea válido antes de consultar la base de datos.
+    // Compruebo que el id sea válido.
     if (Number.isNaN(id)) {
       return res.status(400).json({ message: "ID de servicio no válido" });
     }
 
-    // Busco el servicio actual para comprobar que exista y poder validar si el usuario tiene permiso para eliminarlo.
+    // Busco el servicio actual para comprobar que exista y validar si el usuario tiene permiso para retirarlo.
     const existingService = await prisma.service.findUnique({
       where: { id },
     });
 
-    // Si no existe ningún servicio con ese id, devuelvo un 404.
+    // Si no existe ningún servicio con ese id, devuelvo 404.
     if (!existingService) {
       return res.status(404).json({ message: "Servicio no encontrado" });
     }
 
-    // Solo permito eliminar el servicio a su propietario o a un usuario con rol ADMIN.
+    // Solo permito retirar el servicio a su propietario o a un ADMIN.
     if (existingService.proId !== req.user.id && req.user.role !== "ADMIN") {
       return res
         .status(403)
-        .json({ message: "No puedes eliminar este servicio" });
+        .json({ message: "No puedes retirar este servicio" });
     }
 
-    // Guardo el imageId antiguo para intentar borrar la imagen después de eliminar el servicio de la BD.
-    const oldImageId = existingService.imageId;
+    // Si ya estaba inactivo, no hago nada más.
+    if (!existingService.isActive) {
+      return res.status(200).json({
+        message: "El servicio ya estaba retirado del marketplace",
+      });
+    }
 
-    // Elimino el servicio de la base de datos.
-    await prisma.service.delete({
+    // Marco el servicio como inactivo en vez de borrarlo.
+    // No elimino su imagen de Cloudinary porque el servicio podrá reactivarse después.
+    const archivedService = await prisma.service.update({
       where: { id },
+      data: {
+        isActive: false,
+      },
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        city: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
 
-    // Si el servicio tenía imagen en Cloudinary, intento borrarla después.
-    if (oldImageId) {
-      try {
-        await deleteFromCloudinary(oldImageId);
-      } catch (cloudinaryError) {
-        console.error(
-          "No se pudo borrar la imagen de Cloudinary:",
-          cloudinaryError.message,
-        );
-      }
-    }
-
-    // Si todo va bien, respondo con código 200 y un mensaje de confirmación.
-    return res
-      .status(200)
-      .json({ message: "Servicio eliminado correctamente" });
+    // Devuelvo confirmación.
+    return res.status(200).json({
+      message: "Servicio retirado del marketplace correctamente",
+      service: archivedService,
+    });
   } catch (error) {
-    // Si ocurre cualquier error durante el proceso, devuelvo un 500 junto con un mensaje y el detalle del error.
+    console.error("Error al retirar el servicio:", error);
+
     return res.status(500).json({
-      message: "Error al eliminar el servicio",
-      error: error.message,
+      message: "Error al retirar el servicio",
     });
   }
 }
