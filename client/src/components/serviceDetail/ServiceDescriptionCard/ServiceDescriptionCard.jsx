@@ -1,5 +1,7 @@
+// Importo los estilos del componente.
 import styles from "./ServiceDescriptionCard.module.css";
 
+// Componente que muestra la descripción completa del servicio.
 function ServiceDescriptionCard({ description }) {
   return (
     <div className={styles.card}>
@@ -9,4 +11,5 @@ function ServiceDescriptionCard({ description }) {
   );
 }
 
+// Exporto el componente para usarlo dentro del detalle del servicio.
 export default ServiceDescriptionCard;

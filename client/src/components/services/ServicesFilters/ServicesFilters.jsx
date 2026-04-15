@@ -1,5 +1,9 @@
+// Importo los estilos del componente.
 import styles from "./ServicesFilters.module.css";
 
+// Componente que muestra los filtros del listado de servicios.
+// Recibe los valores actuales, las listas disponibles
+// y las funciones para actualizar cada filtro.
 function ServicesFilters({
   search,
   selectedCategory,
@@ -16,6 +20,7 @@ function ServicesFilters({
   return (
     <div className={styles.filtersBox}>
       <div className={styles.field}>
+        {/* Campo de texto para filtrar servicios por búsqueda */}
         <label htmlFor="search">Buscar</label>
         <input
           id="search"
@@ -27,6 +32,7 @@ function ServicesFilters({
       </div>
 
       <div className={styles.field}>
+        {/* Selector de categoría */}
         <label htmlFor="category">Categoría</label>
         <select
           id="category"
@@ -44,6 +50,7 @@ function ServicesFilters({
       </div>
 
       <div className={styles.field}>
+        {/* Selector de ciudad */}
         <label htmlFor="city">Ciudad</label>
         <select
           id="city"
@@ -61,6 +68,7 @@ function ServicesFilters({
       </div>
 
       <div className={styles.resultsHeader}>
+        {/* Botón para reiniciar todos los filtros */}
         <button type="button" className={styles.clearButton} onClick={onClear}>
           Limpiar filtros
         </button>
@@ -69,4 +77,5 @@ function ServicesFilters({
   );
 }
 
+// Exporto el componente para usarlo dentro de la página Services.
 export default ServicesFilters;

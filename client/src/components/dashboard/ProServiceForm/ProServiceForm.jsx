@@ -1,5 +1,8 @@
+// Importo los estilos del componente.
 import styles from "./ProServiceForm.module.css";
 
+// Componente que muestra el formulario para crear o editar servicios.
+// Recibe el estado del formulario, mensajes y handlers necesarios.
 function ProServiceForm({
   editingServiceId,
   serviceForm,
@@ -15,11 +18,14 @@ function ProServiceForm({
   return (
     <section className={styles.section}>
       <div className={styles.sectionHeader}>
+        {/* El título cambia según si estoy creando o editando un servicio */}
         <h2 className={styles.sectionTitle}>
           {editingServiceId ? "Editar servicio" : "Crear servicio"}
         </h2>
 
         {editingServiceId ? (
+          // Si estoy editando, muestro un botón para cancelar
+          // y resetear el formulario.
           <button
             type="button"
             className={styles.secondaryButton}
@@ -30,6 +36,7 @@ function ProServiceForm({
         ) : null}
       </div>
 
+      {/* Formulario principal para crear o actualizar el servicio */}
       <form className={styles.formCard} onSubmit={handleServiceSubmit}>
         <div className={styles.formGrid}>
           <div className={styles.field}>
@@ -67,6 +74,8 @@ function ProServiceForm({
               onChange={handleServiceFormChange}
             >
               <option value="">Selecciona una categoría</option>
+
+              {/* Pinto todas las categorías disponibles */}
               {categories.map((category) => (
                 <option key={category.id} value={String(category.id)}>
                   {category.name}
@@ -84,6 +93,8 @@ function ProServiceForm({
               onChange={handleServiceFormChange}
             >
               <option value="">Selecciona una ciudad</option>
+
+              {/* Pinto todas las ciudades disponibles */}
               {cities.map((city) => (
                 <option key={city.id} value={String(city.id)}>
                   {city.name}
@@ -117,6 +128,7 @@ function ProServiceForm({
         </div>
 
         <div className={styles.actionsRow}>
+          {/* Botón principal para guardar el servicio */}
           <button
             type="submit"
             className={styles.primaryButton}
@@ -131,10 +143,12 @@ function ProServiceForm({
         </div>
       </form>
 
+      {/* Error general del formulario */}
       {serviceFormError ? (
         <p className={styles.errorText}>{serviceFormError}</p>
       ) : null}
 
+      {/* Mensaje de éxito al guardar */}
       {serviceFormSuccess ? (
         <p className={styles.successText}>{serviceFormSuccess}</p>
       ) : null}
@@ -142,4 +156,5 @@ function ProServiceForm({
   );
 }
 
+// Exporto el componente para usarlo dentro del Dashboard.
 export default ProServiceForm;

@@ -1,17 +1,30 @@
+// Importo hooks de React para guardar estado, ejecutar efectos y memorizar valores calculados.
 import { useEffect, useMemo, useState } from "react";
+
+// Importo el contexto de autenticación para acceder al token, al usuario actual y a funciones de sesión.
 import { useAuth } from "../../context/AuthContext";
+
+// Importo servicios de metadatos para obtener categorías y ciudades.
 import { getCategories, getCities } from "../../services/meta.service";
+
+// Importo servicios relacionados con solicitudes.
 import {
   getMyClientRequests,
   getMyProRequests,
   updateRequestStatus,
 } from "../../services/requests.service";
+
+// Importo servicios relacionados con reseñas.
 import { createReview, getMyReviews } from "../../services/reviews.service";
+
+// Importo servicios relacionados con servicios publicados por el profesional.
 import {
   createService,
   getMyServices,
   updateService,
 } from "../../services/services.service";
+
+// Importo servicios exclusivos del panel de administración.
 import {
   getAdminRequests,
   getAdminReviews,
@@ -22,12 +35,18 @@ import {
   toggleAdminUserBlocked,
   toggleAdminReviewVisibility,
 } from "../../services/admin.service";
+
+// Importo servicios relacionados con el perfil y el dashboard del usuario.
 import {
   getMyDashboard,
   updateMyProfile,
   deleteMyAvatar,
 } from "../../services/users.service";
+
+// Importo la utilidad que transforma errores del backend en un objeto más fácil de usar en formularios.
 import buildFieldErrors from "../../utils/buildFieldErrors";
+
+// Importo los componentes visuales que forman el dashboard.
 import DashboardHero from "../../components/dashboard/DashboardHero/DashboardHero";
 import DashboardStats from "../../components/dashboard/DashboardStats/DashboardStats";
 import ProfileSection from "../../components/dashboard/ProfileSection/ProfileSection";
@@ -41,8 +60,11 @@ import AdminServicesSection from "../../components/dashboard/AdminServicesSectio
 import AdminRequestsSection from "../../components/dashboard/AdminRequestsSection/AdminRequestsSection";
 import AdminReviewsSection from "../../components/dashboard/AdminReviewsSection/AdminReviewsSection";
 import AdminContactMessagesSection from "../../components/dashboard/AdminContactMessagesSection/AdminContactMessagesSection";
+
+// Importo los estilos de la página.
 import styles from "./Dashboard.module.css";
 
+// Estado inicial del formulario de creación/edición de servicios.
 const INITIAL_SERVICE_FORM = {
   title: "",
   description: "",
@@ -52,6 +74,7 @@ const INITIAL_SERVICE_FORM = {
   image: null,
 };
 
+// Estado inicial del formulario de perfil.
 const INITIAL_PROFILE_FORM = {
   name: "",
   email: "",
@@ -59,6 +82,7 @@ const INITIAL_PROFILE_FORM = {
   avatar: null,
 };
 
+// Esta función transforma las estadísticas crudas del backend en tarjetas más fáciles de renderizar según el rol del usuario.
 function getStatsEntries(role, stats) {
   if (!stats) return [];
 
@@ -109,16 +133,23 @@ function getStatsEntries(role, stats) {
   return [];
 }
 
+// Página principal del dashboard.
+// Según el rol del usuario, carga y muestra bloques distintos.
 function Dashboard() {
+  // Obtengo datos de autenticación desde el contexto global.
   const { token, user, logout, setAuthUser } = useAuth();
 
+  // Estado general con la respuesta principal del dashboard.
   const [dashboardData, setDashboardData] = useState(null);
+
+  // Estados con datos específicos según el rol.
   const [requests, setRequests] = useState([]);
   const [myServices, setMyServices] = useState([]);
   const [myReviews, setMyReviews] = useState([]);
   const [categories, setCategories] = useState([]);
   const [cities, setCities] = useState([]);
 
+  // Estados del formulario de perfil.
   const [profileForm, setProfileForm] = useState(INITIAL_PROFILE_FORM);
   const [profileFieldErrors, setProfileFieldErrors] = useState({});
   const [profileError, setProfileError] = useState("");
@@ -126,6 +157,7 @@ function Dashboard() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
 
+  // Estados del formulario de servicios del profesional.
   const [serviceForm, setServiceForm] = useState(INITIAL_SERVICE_FORM);
   const [editingServiceId, setEditingServiceId] = useState(null);
   const [serviceFormError, setServiceFormError] = useState("");
@@ -133,6 +165,7 @@ function Dashboard() {
   const [isSavingService, setIsSavingService] = useState(false);
   const [isTogglingServiceId, setIsTogglingServiceId] = useState(null);
 
+  // Estados del formulario de reseña del cliente.
   const [reviewForm, setReviewForm] = useState({
     requestId: null,
     rating: "5",
@@ -142,6 +175,7 @@ function Dashboard() {
   const [reviewSuccess, setReviewSuccess] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
+  // Estados exclusivos del panel de administración.
   const [adminUsers, setAdminUsers] = useState([]);
   const [adminServices, setAdminServices] = useState([]);
   const [adminRequests, setAdminRequests] = useState([]);
@@ -154,19 +188,23 @@ function Dashboard() {
   const [adminActionError, setAdminActionError] = useState("");
   const [adminActionSuccess, setAdminActionSuccess] = useState("");
 
+  // Estados generales de carga y error.
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingRequestId, setIsUpdatingRequestId] = useState(null);
   const [error, setError] = useState("");
 
+  // Este efecto carga la información del dashboard según el rol actual.
   useEffect(() => {
     async function loadDashboard() {
       try {
         setIsLoading(true);
         setError("");
 
+        // Esta petición es común para todos los roles.
         const dashboardPromise = getMyDashboard(token);
 
         if (user?.role === "CLIENT") {
+          // Si es cliente, cargo su dashboard, sus solicitudes y sus reseñas.
           const [dashboardResponse, requestsResponse, reviewsResponse] =
             await Promise.all([
               dashboardPromise,
@@ -184,6 +222,7 @@ function Dashboard() {
           setAdminReviews([]);
           setAdminContactMessages([]);
         } else if (user?.role === "PRO") {
+          // Si es profesional, cargo además sus servicios, categorías, ciudades y reseñas recibidas.
           const [
             dashboardResponse,
             requestsResponse,
@@ -212,6 +251,7 @@ function Dashboard() {
           setAdminReviews([]);
           setAdminContactMessages([]);
         } else {
+          // Si es admin, cargo todos los bloques de administración.
           const [
             dashboardResponse,
             usersResponse,
@@ -241,6 +281,7 @@ function Dashboard() {
           );
         }
       } catch (loadError) {
+        // Si la sesión ya no es válida, cierro sesión automáticamente.
         if (loadError.status === 401) {
           logout();
           return;
@@ -255,11 +296,13 @@ function Dashboard() {
       }
     }
 
+    // Solo intento cargar si ya tengo token y rol disponibles.
     if (token && user?.role) {
       loadDashboard();
     }
   }, [token, user?.role, logout]);
 
+  // Este efecto rellena el formulario de perfil cuando cambian los datos del usuario cargados.
   useEffect(() => {
     const currentUser = dashboardData?.user || user;
 
@@ -273,6 +316,7 @@ function Dashboard() {
     });
   }, [dashboardData?.user, user]);
 
+  // Estos efectos hacen que los mensajes de éxito desaparezcan solos tras 4 segundos.
   useEffect(() => {
     if (!serviceFormSuccess) return;
     const timeoutId = setTimeout(() => setServiceFormSuccess(""), 4000);
@@ -297,10 +341,13 @@ function Dashboard() {
     return () => clearTimeout(timeoutId);
   }, [profileSuccess]);
 
+  // Preparo las tarjetas resumen del dashboard a partir del rol del usuario y sus estadísticas.
   const statsEntries = useMemo(() => {
     return getStatsEntries(user?.role, dashboardData?.stats);
   }, [user?.role, dashboardData?.stats]);
 
+  // Reinicia el formulario de servicio y, si se indica,
+  // también limpia sus mensajes.
   function resetServiceForm(clearMessages = true) {
     setServiceForm(INITIAL_SERVICE_FORM);
     setEditingServiceId(null);
@@ -311,6 +358,8 @@ function Dashboard() {
     }
   }
 
+  // Maneja los cambios del formulario de perfil,
+  // incluyendo inputs normales y el archivo del avatar.
   function handleProfileChange(event) {
     const { name, value, files, type } = event.target;
 
@@ -328,9 +377,11 @@ function Dashboard() {
     setProfileSuccess("");
   }
 
+  // Envía el formulario de perfil al backend.
   async function handleProfileSubmit(event) {
     event.preventDefault();
 
+    // Uso FormData porque puede incluir avatar.
     const payload = new FormData();
     payload.append("name", profileForm.name.trim());
     payload.append("email", profileForm.email.trim().toLowerCase());
@@ -349,6 +400,8 @@ function Dashboard() {
       const response = await updateMyProfile(token, payload);
       const updatedUser = response?.user;
 
+      // Si el backend devuelve el usuario actualizado,
+      // actualizo tanto el dashboard como el contexto global.
       if (updatedUser) {
         setDashboardData((prev) => ({
           ...(prev || {}),
@@ -362,6 +415,7 @@ function Dashboard() {
         response?.message || "Perfil actualizado correctamente.",
       );
     } catch (saveError) {
+      // Si el backend devuelve errores por campo, los guardo para el formulario.
       const fieldErrors = buildFieldErrors(saveError);
 
       if (Object.keys(fieldErrors).length > 0) {
@@ -374,6 +428,7 @@ function Dashboard() {
     }
   }
 
+  // Elimina el avatar actual del usuario.
   async function handleRemoveAvatar() {
     const confirmed = window.confirm(
       "¿Seguro que quieres eliminar tu avatar actual?",
@@ -393,6 +448,8 @@ function Dashboard() {
       const response = await deleteMyAvatar(token);
       const updatedUser = response?.user;
 
+      // Si el backend devuelve el usuario actualizado,
+      // sincronizo dashboard y contexto.
       if (updatedUser) {
         setDashboardData((prev) => ({
           ...(prev || {}),
@@ -402,6 +459,7 @@ function Dashboard() {
         setAuthUser(updatedUser);
       }
 
+      // Limpio el archivo seleccionado del formulario.
       setProfileForm((prev) => ({
         ...prev,
         avatar: null,
@@ -415,6 +473,7 @@ function Dashboard() {
     }
   }
 
+  // Maneja los cambios del formulario de creación/edición de servicios.
   function handleServiceFormChange(event) {
     const { name, value, files, type } = event.target;
 
@@ -427,6 +486,7 @@ function Dashboard() {
     setServiceFormSuccess("");
   }
 
+  // Validación básica del formulario de servicios.
   function validateServiceForm() {
     if (!serviceForm.title.trim())
       return "Introduce un título para el servicio.";
@@ -439,6 +499,7 @@ function Dashboard() {
     return "";
   }
 
+  // Recarga los datos del dashboard del cliente.
   async function refreshClientData() {
     const [dashboardResponse, requestsResponse, reviewsResponse] =
       await Promise.all([
@@ -452,6 +513,7 @@ function Dashboard() {
     setMyReviews(reviewsResponse?.reviews || []);
   }
 
+  // Recarga los datos del dashboard del profesional.
   async function refreshProData() {
     const [
       dashboardResponse,
@@ -471,6 +533,7 @@ function Dashboard() {
     setMyReviews(reviewsResponse?.reviews || []);
   }
 
+  // Recarga los datos del panel de administración.
   async function refreshAdminData() {
     const [
       dashboardResponse,
@@ -496,6 +559,7 @@ function Dashboard() {
     setAdminContactMessages(contactMessagesResponse?.contactMessages || []);
   }
 
+  // Crea o actualiza un servicio del profesional.
   async function handleServiceSubmit(event) {
     event.preventDefault();
 
@@ -506,6 +570,7 @@ function Dashboard() {
       return;
     }
 
+    // Uso FormData porque el servicio puede incluir imagen.
     const payload = new FormData();
     payload.append("title", serviceForm.title.trim());
     payload.append("description", serviceForm.description.trim());
@@ -530,6 +595,7 @@ function Dashboard() {
         await createService(token, payload);
       }
 
+      // Tras guardar, recargo los datos y reseteo el formulario.
       await refreshProData();
       resetServiceForm(false);
 
@@ -547,6 +613,7 @@ function Dashboard() {
     }
   }
 
+  // Carga en el formulario los datos de un servicio para editarlo.
   function handleEditService(service) {
     setEditingServiceId(service.id);
     setServiceForm({
@@ -561,6 +628,7 @@ function Dashboard() {
     setServiceFormSuccess("");
   }
 
+  // Activa o desactiva un servicio del profesional.
   async function handleToggleService(service) {
     try {
       setIsTogglingServiceId(service.id);
@@ -587,6 +655,7 @@ function Dashboard() {
     }
   }
 
+  // Actualiza el estado de una solicitud.
   async function handleUpdateRequestStatus(requestId, status) {
     try {
       setIsUpdatingRequestId(requestId);
@@ -594,12 +663,14 @@ function Dashboard() {
       const response = await updateRequestStatus(token, requestId, status);
       const updatedRequest = response?.request;
 
+      // Actualizo localmente la solicitud modificada.
       setRequests((prev) =>
         prev.map((request) =>
           request.id === requestId ? updatedRequest || request : request,
         ),
       );
 
+      // Después refresco los datos según el rol.
       if (user?.role === "CLIENT") {
         await refreshClientData();
       }
@@ -617,6 +688,7 @@ function Dashboard() {
     }
   }
 
+  // Abre el formulario para crear una reseña sobre una solicitud concreta.
   function handleOpenReviewForm(requestId) {
     setReviewForm({
       requestId,
@@ -627,6 +699,7 @@ function Dashboard() {
     setReviewSuccess("");
   }
 
+  // Maneja los cambios del formulario de reseñas.
   function handleReviewChange(event) {
     const { name, value } = event.target;
 
@@ -639,6 +712,7 @@ function Dashboard() {
     setReviewSuccess("");
   }
 
+  // Envía una nueva reseña al backend.
   async function handleReviewSubmit(event) {
     event.preventDefault();
 
@@ -665,6 +739,7 @@ function Dashboard() {
 
       await refreshClientData();
 
+      // Reinicio el formulario tras crear la reseña.
       setReviewForm({
         requestId: null,
         rating: "5",
@@ -681,6 +756,7 @@ function Dashboard() {
     }
   }
 
+  // Activa o desactiva un servicio desde el panel de administración.
   async function handleAdminToggleService(service) {
     try {
       setIsAdminTogglingServiceId(service.id);
@@ -705,6 +781,7 @@ function Dashboard() {
     }
   }
 
+  // Bloquea o desbloquea un usuario desde el panel de administración.
   async function handleAdminToggleUserBlocked(adminUser) {
     try {
       setIsAdminTogglingUserId(adminUser.id);
@@ -728,6 +805,7 @@ function Dashboard() {
     }
   }
 
+  // Oculta o vuelve visible una reseña desde el panel de administración.
   async function handleAdminToggleReviewVisibility(review) {
     try {
       setIsAdminTogglingReviewId(review.id);
@@ -752,6 +830,7 @@ function Dashboard() {
     }
   }
 
+  // Estado visual mientras el dashboard sigue cargando.
   if (isLoading) {
     return (
       <main className={styles.dashboardPage}>
@@ -763,6 +842,7 @@ function Dashboard() {
     );
   }
 
+  // Estado visual si la carga ha fallado.
   if (error) {
     return (
       <main className={styles.dashboardPage}>
@@ -774,12 +854,17 @@ function Dashboard() {
     );
   }
 
+  // Render principal del dashboard.
   return (
     <main className={styles.dashboardPage}>
       <div className="container">
+        {/* Cabecera de bienvenida con datos del usuario */}
         <DashboardHero user={dashboardData?.user || user} />
+
+        {/* Tarjetas resumen con estadísticas */}
         <DashboardStats statsEntries={statsEntries} />
 
+        {/* Bloque de perfil, común para cualquier rol */}
         <ProfileSection
           profileForm={profileForm}
           profileFieldErrors={profileFieldErrors}
@@ -795,6 +880,7 @@ function Dashboard() {
           handleRemoveAvatar={handleRemoveAvatar}
         />
 
+        {/* Bloques exclusivos para CLIENT */}
         {user?.role === "CLIENT" ? (
           <ClientRequestsSection
             requests={requests}
@@ -812,6 +898,7 @@ function Dashboard() {
           />
         ) : null}
 
+        {/* Bloques exclusivos para PRO */}
         {user?.role === "PRO" ? (
           <>
             <ProServiceForm
@@ -844,6 +931,7 @@ function Dashboard() {
           </>
         ) : null}
 
+        {/* Bloques exclusivos para ADMIN */}
         {user?.role === "ADMIN" ? (
           <>
             <section className={styles.adminIntro}>
@@ -857,6 +945,7 @@ function Dashboard() {
                 <p className={styles.successText}>{adminActionSuccess}</p>
               ) : null}
             </section>
+
             <AdminContactMessagesSection
               adminContactMessages={adminContactMessages}
             />
@@ -867,12 +956,15 @@ function Dashboard() {
               isAdminTogglingUserId={isAdminTogglingUserId}
               handleAdminToggleUserBlocked={handleAdminToggleUserBlocked}
             />
+
             <AdminServicesSection
               adminServices={adminServices}
               isAdminTogglingServiceId={isAdminTogglingServiceId}
               handleAdminToggleService={handleAdminToggleService}
             />
+
             <AdminRequestsSection adminRequests={adminRequests} />
+
             <AdminReviewsSection
               adminReviews={adminReviews}
               isAdminTogglingReviewId={isAdminTogglingReviewId}
@@ -887,4 +979,5 @@ function Dashboard() {
   );
 }
 
+// Exporto la página para usarla en el router.
 export default Dashboard;

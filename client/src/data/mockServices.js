@@ -1,6 +1,7 @@
 // Datos mock usados en la fase inicial del prototipo de ServiMeet.
 // Se conservan como referencia del desarrollo previo a la integración completa con la API real del backend.
 
+// Exporto un array de servicios simulados que sirvió para probar la interfaz antes de conectar el backend real.
 export const mockServices = [
   {
     id: 1,

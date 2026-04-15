@@ -1,6 +1,11 @@
+// Importo la utilidad para formatear el precio del servicio.
 import formatPrice from "../../../utils/formatPrice";
+
+// Importo los estilos del componente.
 import styles from "./ServiceSidebar.module.css";
 
+// Componente lateral que muestra el resumen del servicio
+// y el bloque para contactar con el profesional.
 function ServiceSidebar({
   service,
   cityName,
@@ -19,6 +24,7 @@ function ServiceSidebar({
 }) {
   return (
     <aside className={styles.sidebar}>
+      {/* Tarjeta con información rápida del servicio */}
       <div className={styles.sideCard}>
         <p className={styles.sideLabel}>Precio orientativo</p>
         <p className={styles.price}>Desde {formatPrice(service.price)}</p>
@@ -31,20 +37,24 @@ function ServiceSidebar({
             <strong>Ciudad:</strong> {cityName}
           </p>
           <p>
-            <strong>Estado:</strong> {service.isActive ? "Activo" : "No disponible"}
+            <strong>Estado:</strong>{" "}
+            {service.isActive ? "Activo" : "No disponible"}
           </p>
         </div>
       </div>
 
+      {/* Tarjeta con el bloque de contacto o mensajes informativos */}
       <div className={styles.sideCard}>
         <h3>Contactar</h3>
 
+        {/* Si el servicio no está activo, aviso al usuario */}
         {isServiceUnavailable ? (
           <p className={styles.professionalText}>
             Este servicio no está disponible actualmente.
           </p>
         ) : null}
 
+        {/* Si no hay sesión iniciada, invito al usuario a hacer login */}
         {!isAuthenticated && !isServiceUnavailable ? (
           <>
             <p className={styles.professionalText}>
@@ -60,12 +70,16 @@ function ServiceSidebar({
           </>
         ) : null}
 
+        {/* Si el usuario autenticado es profesional, informo de que no puede solicitar */}
         {isAuthenticated && !isServiceUnavailable && user?.role === "PRO" ? (
           <p className={styles.professionalText}>
-            Has iniciado sesión como profesional. Solo los clientes pueden enviar solicitudes.
+            Has iniciado sesión como profesional. Solo los clientes pueden
+            enviar solicitudes.
           </p>
         ) : null}
 
+        {/* Si el usuario es cliente pero no puede solicitar este servicio,
+            muestro el motivo correspondiente */}
         {isAuthenticated &&
         !isServiceUnavailable &&
         user?.role === "CLIENT" &&
@@ -75,6 +89,7 @@ function ServiceSidebar({
           </p>
         ) : null}
 
+        {/* Si el usuario sí puede solicitar, muestro el formulario */}
         {canRequest ? (
           <form className={styles.requestForm} onSubmit={onRequestSubmit}>
             <textarea
@@ -85,12 +100,17 @@ function ServiceSidebar({
               rows="5"
             />
 
-            {requestError ? <p className={styles.errorText}>{requestError}</p> : null}
+            {/* Mensaje de error del formulario */}
+            {requestError ? (
+              <p className={styles.errorText}>{requestError}</p>
+            ) : null}
 
+            {/* Mensaje de éxito tras enviar la solicitud */}
             {requestSuccess ? (
               <p className={styles.successText}>{requestSuccess}</p>
             ) : null}
 
+            {/* Botón para enviar la solicitud */}
             <button
               type="submit"
               className={styles.ctaButton}
@@ -105,4 +125,5 @@ function ServiceSidebar({
   );
 }
 
+// Exporto el componente para usarlo dentro del detalle del servicio.
 export default ServiceSidebar;

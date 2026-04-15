@@ -1,5 +1,9 @@
+// Importo los estilos del componente.
 import styles from "./ProfileSection.module.css";
 
+// Componente que muestra la sección de perfil dentro del dashboard.
+// Recibe el estado del formulario, errores, mensajes y handlers
+// necesarios para editar los datos del usuario.
 function ProfileSection({
   profileForm,
   profileFieldErrors,
@@ -16,6 +20,7 @@ function ProfileSection({
     <section className={styles.section}>
       <div className={styles.sectionHeader}>
         <div>
+          {/* Título y texto descriptivo de la sección */}
           <h2 className={styles.sectionTitle}>Mi perfil</h2>
           <p className={styles.infoText}>
             Actualiza tus datos básicos para mantener tu cuenta al día.
@@ -23,6 +28,7 @@ function ProfileSection({
         </div>
       </div>
 
+      {/* Formulario para editar los datos del perfil */}
       <form
         className={styles.formCard}
         onSubmit={handleProfileSubmit}
@@ -39,6 +45,7 @@ function ProfileSection({
               onChange={handleProfileChange}
               placeholder="Tu nombre completo"
             />
+            {/* Error del campo nombre */}
             {profileFieldErrors.name ? (
               <p className={styles.errorText}>{profileFieldErrors.name}</p>
             ) : null}
@@ -54,6 +61,7 @@ function ProfileSection({
               onChange={handleProfileChange}
               placeholder="tuemail@ejemplo.com"
             />
+            {/* Error del campo email */}
             {profileFieldErrors.email ? (
               <p className={styles.errorText}>{profileFieldErrors.email}</p>
             ) : null}
@@ -69,6 +77,7 @@ function ProfileSection({
               onChange={handleProfileChange}
               placeholder="Tu ciudad"
             />
+            {/* Error del campo ciudad */}
             {profileFieldErrors.city ? (
               <p className={styles.errorText}>{profileFieldErrors.city}</p>
             ) : null}
@@ -85,6 +94,7 @@ function ProfileSection({
               onChange={handleProfileChange}
             />
 
+            {/* Error del campo avatar */}
             {profileFieldErrors.avatar ? (
               <p className={styles.errorText}>{profileFieldErrors.avatar}</p>
             ) : null}
@@ -94,6 +104,7 @@ function ProfileSection({
             <label>Avatar actual</label>
 
             {currentAvatarUrl ? (
+              // Si el usuario ya tiene avatar, lo muestro junto al botón para eliminarlo.
               <div className={styles.avatarCurrentRow}>
                 <img
                   src={currentAvatarUrl}
@@ -113,6 +124,7 @@ function ProfileSection({
                 </div>
               </div>
             ) : (
+              // Si no hay avatar actual, muestro un texto informativo.
               <p className={styles.helperText}>
                 No tienes avatar subido actualmente.
               </p>
@@ -120,14 +132,18 @@ function ProfileSection({
           </div>
         </div>
 
+        {/* Error general al guardar el perfil */}
         {profileError ? (
           <p className={styles.errorText}>{profileError}</p>
         ) : null}
+
+        {/* Mensaje de éxito al guardar el perfil */}
         {profileSuccess ? (
           <p className={styles.successText}>{profileSuccess}</p>
         ) : null}
 
         <div className={styles.actionsRow}>
+          {/* Botón principal para guardar los cambios del perfil */}
           <button
             type="submit"
             className={styles.primaryButton}
@@ -141,4 +157,5 @@ function ProfileSection({
   );
 }
 
+// Exporto el componente para usarlo dentro del Dashboard.
 export default ProfileSection;

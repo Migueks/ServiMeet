@@ -1,10 +1,26 @@
+// Importo hooks de React para ejecutar efectos, memorizar valores
+// y guardar el estado local del formulario y de la página.
 import { useEffect, useMemo, useState } from "react";
+
+// Importo utilidades de React Router para enlazar páginas
+// y redirigir al usuario por código.
 import { Link, useNavigate } from "react-router-dom";
+
+// Importo el contexto de autenticación para registrar usuarios
+// y saber si ya hay una sesión iniciada.
 import { useAuth } from "../../context/AuthContext";
+
+// Importo el servicio que obtiene la lista de ciudades desde el backend.
 import { getCities } from "../../services/meta.service";
+
+// Importo la utilidad que transforma los errores del backend
+// en un objeto más fácil de usar en el formulario.
 import buildFieldErrors from "../../utils/buildFieldErrors";
+
+// Importo los estilos de la página.
 import styles from "./Register.module.css";
 
+// Defino el estado inicial del formulario de registro.
 const INITIAL_FORM = {
   firstName: "",
   lastName: "",
@@ -15,43 +31,72 @@ const INITIAL_FORM = {
   role: "CLIENT",
 };
 
+// Esta función normaliza la respuesta de ciudades
+// para asegurar que siempre tenga el mismo formato.
 function normalizeCitiesResponse(data) {
+  // Si la respuesta ya es un array, lo uso directamente.
+  // Si no, intento leer data.cities.
   const rawCities = Array.isArray(data) ? data : data?.cities || [];
 
-  return rawCities
-    .map((city) => {
-      if (typeof city === "string") {
-        return {
-          id: city,
-          name: city,
-        };
-      }
+  return (
+    rawCities
+      .map((city) => {
+        // Si la ciudad llega como texto simple, la convierto a objeto con id y name.
+        if (typeof city === "string") {
+          return {
+            id: city,
+            name: city,
+          };
+        }
 
-      return {
-        id: city.id ?? city.name,
-        name: city.name ?? "",
-      };
-    })
-    .filter((city) => city.name);
+        // Si ya viene como objeto, me aseguro de devolver un formato consistente.
+        return {
+          id: city.id ?? city.name,
+          name: city.name ?? "",
+        };
+      })
+      // Elimino posibles elementos sin nombre válido.
+      .filter((city) => city.name)
+  );
 }
 
+// Página de registro.
 function Register() {
+  // Hook para redirigir al usuario a otra página por código.
   const navigate = useNavigate();
+
+  // Obtengo del contexto la función de registro
+  // y el estado actual de autenticación.
   const { register, isAuthenticated, isLoadingAuth } = useAuth();
 
+  // Estado principal del formulario.
   const [formData, setFormData] = useState(INITIAL_FORM);
+
+  // Estado para guardar errores por campo.
   const [fieldErrors, setFieldErrors] = useState({});
+
+  // Estado para mostrar un error general del formulario.
   const [submitError, setSubmitError] = useState("");
+
+  // Estado para desactivar el botón mientras se envía el formulario.
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Estado con la lista de ciudades disponibles.
   const [cities, setCities] = useState([]);
+
+  // Estado para indicar si la lista de ciudades sigue cargando.
   const [isLoadingCities, setIsLoadingCities] = useState(true);
+
+  // Estado para guardar un posible error al cargar ciudades.
   const [citiesError, setCitiesError] = useState("");
 
+  // Memoizo el texto de ayuda de la contraseña.
+  // En este caso no es estrictamente necesario, pero mantiene el valor estable.
   const passwordHint = useMemo(() => {
     return "Mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo.";
   }, []);
 
+  // Si el usuario ya está autenticado, lo redirijo al dashboard.
   useEffect(() => {
     if (isLoadingAuth) return;
 
@@ -60,19 +105,26 @@ function Register() {
     }
   }, [isAuthenticated, isLoadingAuth, navigate]);
 
+  // Cargo las ciudades al montar la página.
   useEffect(() => {
     async function loadCities() {
       try {
+        // Activo la carga y limpio errores previos.
         setIsLoadingCities(true);
         setCitiesError("");
 
+        // Pido las ciudades al backend y normalizo la respuesta.
         const data = await getCities();
         const normalizedCities = normalizeCitiesResponse(data);
+
+        // Guardo la lista normalizada en el estado.
         setCities(normalizedCities);
       } catch {
+        // Si falla la carga, vacío la lista y muestro error.
         setCities([]);
         setCitiesError("No se pudieron cargar las ciudades.");
       } finally {
+        // Desactivo la carga al terminar.
         setIsLoadingCities(false);
       }
     }
@@ -80,6 +132,8 @@ function Register() {
     loadCities();
   }, []);
 
+  // Actualiza el campo del formulario que haya cambiado
+  // y limpia errores previos de ese mismo campo.
   function handleChange(event) {
     const { name, value } = event.target;
 
@@ -96,11 +150,15 @@ function Register() {
     setSubmitError("");
   }
 
+  // Valido los datos del formulario antes de enviarlos al backend.
   function validateForm() {
     const errors = {};
     const trimmedEmail = formData.email.trim();
 
+    // Expresión regular para validar emails.
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    // Expresión regular para exigir una contraseña segura.
     const passwordRegex =
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
 
@@ -138,9 +196,11 @@ function Register() {
     return errors;
   }
 
+  // Maneja el envío del formulario de registro.
   async function handleSubmit(event) {
     event.preventDefault();
 
+    // Primero valido los datos en cliente.
     const clientErrors = validateForm();
 
     if (Object.keys(clientErrors).length > 0) {
@@ -148,10 +208,13 @@ function Register() {
       return;
     }
 
+    // Uno nombre y apellidos en un único campo "name"
+    // para adaptarlo al formato que espera el backend.
     const fullName = `${formData.firstName} ${formData.lastName}`
       .replace(/\s+/g, " ")
       .trim();
 
+    // Construyo el payload final que se enviará al backend.
     const payload = {
       name: fullName,
       city: formData.city.trim(),
@@ -161,12 +224,16 @@ function Register() {
     };
 
     try {
+      // Activo el estado de envío y limpio errores previos.
       setIsSubmitting(true);
       setFieldErrors({});
       setSubmitError("");
 
+      // Envío los datos al backend usando la función register del contexto.
       await register(payload);
 
+      // Si el registro va bien, redirijo al login
+      // y paso datos útiles en location.state.
       navigate("/login", {
         replace: true,
         state: {
@@ -176,9 +243,12 @@ function Register() {
         },
       });
     } catch (error) {
+      // Si el backend devuelve errores por campo, los adapto al formulario.
       const serverFieldErrors = buildFieldErrors(error);
 
       if (Object.keys(serverFieldErrors).length > 0) {
+        // Si el backend devuelve error sobre "name",
+        // lo reparto entre nombre y apellidos para la interfaz.
         if (serverFieldErrors.name) {
           serverFieldErrors.firstName = serverFieldErrors.name;
           serverFieldErrors.lastName = serverFieldErrors.name;
@@ -188,8 +258,10 @@ function Register() {
         setFieldErrors(serverFieldErrors);
       }
 
+      // Muestro también el error general.
       setSubmitError(error.message || "No se pudo completar el registro.");
     } finally {
+      // Desactivo el estado de envío al terminar.
       setIsSubmitting(false);
     }
   }
@@ -197,11 +269,13 @@ function Register() {
   return (
     <main className={styles.registerPage}>
       <div className="container">
+        {/* Enlace para volver a la página de inicio */}
         <Link to="/" className={styles.backLink}>
           ← Volver al inicio
         </Link>
 
         <div className={styles.wrapper}>
+          {/* Columna informativa lateral */}
           <section className={styles.info}>
             <span className={styles.badge}>Registro</span>
             <h1 className={styles.title}>
@@ -213,20 +287,24 @@ function Register() {
             </p>
           </section>
 
+          {/* Tarjeta principal con el formulario de registro */}
           <section className={styles.card}>
             <div className={styles.cardHeader}>
               <h2>Crear cuenta</h2>
               <p>Completa tus datos para comenzar.</p>
             </div>
 
+            {/* Error general del formulario */}
             {submitError ? (
               <p className={styles.errorBox}>{submitError}</p>
             ) : null}
 
+            {/* Error al cargar ciudades */}
             {citiesError ? (
               <p className={styles.errorBox}>{citiesError}</p>
             ) : null}
 
+            {/* Formulario de registro */}
             <form className={styles.form} onSubmit={handleSubmit} noValidate>
               <div className={styles.formGrid}>
                 <div className={styles.field}>
@@ -358,6 +436,7 @@ function Register() {
                 </div>
               </div>
 
+              {/* Texto de ayuda para orientar sobre la contraseña */}
               <span className={styles.helperText}>{passwordHint}</span>
 
               <div className={styles.field}>
@@ -373,6 +452,7 @@ function Register() {
                 </select>
               </div>
 
+              {/* Botón de envío del formulario */}
               <button
                 type="submit"
                 className={styles.submitButton}
@@ -387,6 +467,7 @@ function Register() {
               </button>
             </form>
 
+            {/* Enlace a la página de login */}
             <p className={styles.footerText}>
               ¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link>
             </p>
@@ -397,4 +478,5 @@ function Register() {
   );
 }
 
+// Exporto la página para usarla en el router.
 export default Register;
