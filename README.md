@@ -756,7 +756,7 @@ Algunas mejoras que podrían incorporarse en futuras versiones:
 
 ## Autor
 
-Proyecto desarrollado por **Miguel** como Trabajo de Fin de Grado de **Desarrollo de Aplicaciones Web**.
+Proyecto desarrollado por **Miguel López-Herrero López** como Trabajo de Fin de Grado de **Desarrollo de Aplicaciones Web**.
 
 ---
 
