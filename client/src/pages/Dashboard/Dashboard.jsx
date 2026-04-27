@@ -1,5 +1,5 @@
-// Importo hooks de React para guardar estado, ejecutar efectos y memorizar valores calculados.
-import { useEffect, useMemo, useState } from "react";
+// Importo hooks de React para guardar estado, ejecutar efectos, guardar referencias del DOM y memorizar valores calculados.
+import { useEffect, useMemo, useRef, useState } from "react";
 
 // Importo el contexto de autenticación para acceder al token, al usuario actual y a funciones de sesión.
 import { useAuth } from "../../context/AuthContext";
@@ -164,6 +164,9 @@ function Dashboard() {
   const [serviceFormSuccess, setServiceFormSuccess] = useState("");
   const [isSavingService, setIsSavingService] = useState(false);
   const [isTogglingServiceId, setIsTogglingServiceId] = useState(null);
+
+  // Referencia al bloque del formulario para poder desplazar la vista automáticamente cuando se pulse en editar.
+  const serviceFormRef = useRef(null);
 
   // Estados del formulario de reseña del cliente.
   const [reviewForm, setReviewForm] = useState({
@@ -626,6 +629,15 @@ function Dashboard() {
     });
     setServiceFormError("");
     setServiceFormSuccess("");
+
+    // Hago scroll automático hasta el formulario de servicio
+    // para que el usuario vea directamente la zona de edición.
+    requestAnimationFrame(() => {
+      serviceFormRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   }
 
   // Activa o desactiva un servicio del profesional.
@@ -901,18 +913,20 @@ function Dashboard() {
         {/* Bloques exclusivos para PRO */}
         {user?.role === "PRO" ? (
           <>
-            <ProServiceForm
-              editingServiceId={editingServiceId}
-              serviceForm={serviceForm}
-              categories={categories}
-              cities={cities}
-              serviceFormError={serviceFormError}
-              serviceFormSuccess={serviceFormSuccess}
-              isSavingService={isSavingService}
-              handleServiceFormChange={handleServiceFormChange}
-              handleServiceSubmit={handleServiceSubmit}
-              resetServiceForm={resetServiceForm}
-            />
+            <div ref={serviceFormRef} className={styles.formScrollTarget}>
+              <ProServiceForm
+                editingServiceId={editingServiceId}
+                serviceForm={serviceForm}
+                categories={categories}
+                cities={cities}
+                serviceFormError={serviceFormError}
+                serviceFormSuccess={serviceFormSuccess}
+                isSavingService={isSavingService}
+                handleServiceFormChange={handleServiceFormChange}
+                handleServiceSubmit={handleServiceSubmit}
+                resetServiceForm={resetServiceForm}
+              />
+            </div>
 
             <ProServicesSection
               myServices={myServices}

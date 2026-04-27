@@ -37,6 +37,10 @@
   margin-bottom: var(--space-12);
 }
 
+.formScrollTarget {
+  scroll-margin-top: 120px;
+}
+
 @media (max-width: 768px) {
   .dashboardPage {
     padding-block: var(--space-10);

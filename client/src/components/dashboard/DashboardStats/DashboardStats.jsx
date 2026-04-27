@@ -10,6 +10,8 @@ import styles from "./DashboardStats.module.css";
 function DashboardStats({ statsEntries = [] }) {
   return (
     <section className={styles.statsSection}>
+      {/* Añado título explicativo */}
+      <h2 className={styles.sectionTitle}>Resumen</h2>
       <div className={styles.grid}>
         {statsEntries.map((item) => {
           // Compruebo si la tarjeta corresponde a una valoración media
